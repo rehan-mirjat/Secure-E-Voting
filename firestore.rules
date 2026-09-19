@@ -1,0 +1,208 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn()
+        && request.auth.token.platformAdmin == true;
+    }
+
+    function getMembership(orgId) {
+      let membershipId = orgId + '_' + request.auth.uid;
+      return get(/databases/$(database)/documents/organizationMembers/$(membershipId)).data;
+    }
+
+    function isOrgMember(orgId) {
+      let membershipId = orgId + '_' + request.auth.uid;
+      return exists(/databases/$(database)/documents/organizationMembers/$(membershipId)) &&
+             getMembership(orgId).status == 'active';
+    }
+
+    function isOrgAdmin(orgId) {
+      return isOrgMember(orgId) && (
+        getMembership(orgId).role == 'owner' ||
+        getMembership(orgId).role == 'admin'
+      );
+    }
+
+    // -------------------------------------------------------------------------
+    // 1. USERS
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isSelf(userId) || isSuperAdmin();
+      allow create: if false; // Handled exclusively via completeRegistration Cloud Function
+
+      // Profile Editing Security (Step 8 Hardened):
+      // Allow client updates ONLY for cosmetic fields on own profile.
+      // Super Admins must also use dedicated Cloud Functions for administrative profile changes.
+      allow update: if isSelf(userId) && (
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["firstName", "lastName", "displayName", "photoUrl", "phoneNumber"])
+      );
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. ORGANIZATIONS
+    // -------------------------------------------------------------------------
+    match /organizations/{organizationId} {
+      // Step 3 Hardened Read Rule:
+      // Organization metadata is strictly readable ONLY by active members or Super Admins.
+      // Unauthenticated or non-member clients CANNOT read organization documents.
+      allow read: if isSignedIn() && (
+        isOrgMember(organizationId) ||
+        isSuperAdmin()
+      );
+      allow write: if false; // All organization writes remain Cloud Function only
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. MEMBERSHIPS & INVITES
+    // -------------------------------------------------------------------------
+    match /organizationMembers/{membershipId} {
+      // Step 1 Read Rule: Users can query & read their own membership documents
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      allow write: if false; // All membership writes remain Cloud Function only
+    }
+
+    match /organizationInvitations/{invitationId} {
+      allow read, write: if false; // Server-only via Cloud Functions
+    }
+
+    match /organizationInvitationKeys/{keyId} {
+      allow read, write: if false; // Server-only via Cloud Functions
+    }
+
+    match /organizationInvitationTokens/{tokenId} {
+      allow read, write: if false; // Server-only via Cloud Functions
+    }
+
+    match /joiningCodes/{codeId} {
+      allow read, write: if false;
+    }
+
+    match /departments/{departmentId} {
+      // Step 6 Security Rule: Member Read-Only Access
+      // Query validation explicitly enforces organization isolation.
+      // A member can only read and query departments for organizations they actively belong to.
+      allow read: if isSignedIn() && (
+        isOrgMember(resource.data.organizationId) ||
+        isSuperAdmin()
+      );
+      allow write: if false; // All department writes remain Cloud Function only
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. VOTING EVENTS, CANDIDATES & OPTIONS
+    // -------------------------------------------------------------------------
+    match /votingEvents/{eventId} {
+      // Step 1 Hardened Read Rule:
+      // - Super Admins can read all events.
+      // - Org Owners/Admins can read all events in their org (DRAFT, SCHEDULED, ACTIVE, CLOSED, CANCELLED, ARCHIVED).
+      // - Regular Members can read ONLY ACTIVE and CLOSED events in their org.
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        (
+          isOrgMember(resource.data.organizationId) && (
+            (resource.data.status in ["ACTIVE", "CLOSED"]) ||
+            isOrgAdmin(resource.data.organizationId)
+          )
+        )
+      );
+
+      allow write: if false; // All mutations are Cloud Function only
+    }
+
+    match /candidates/{candidateId} {
+      // Step 2 Hardened Read Rule:
+      // - Super Admins can read all candidates.
+      // - Org Members can read candidates ONLY for ACTIVE or CLOSED events in their org.
+      // - Org Admins can read candidates for all events in their org (including DRAFT & SCHEDULED).
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        (
+          isOrgMember(resource.data.organizationId) && (
+            (get(/databases/$(database)/documents/votingEvents/$(resource.data.votingEventId)).data.status in ["ACTIVE", "CLOSED"]) ||
+            isOrgAdmin(resource.data.organizationId)
+          )
+        )
+      );
+
+      allow write: if false; // All candidate writes remain Cloud Function only
+    }
+
+    match /pollOptions/{optionId} {
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        (
+          isOrgMember(resource.data.organizationId) && (
+            (get(/databases/$(database)/documents/votingEvents/$(resource.data.votingEventId)).data.status in ["ACTIVE", "CLOSED"]) ||
+            isOrgAdmin(resource.data.organizationId)
+          )
+        )
+      );
+
+      allow write: if false; // All poll option writes remain Cloud Function only
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. VOTES & PARTICIPATION
+    // -------------------------------------------------------------------------
+    match /votes/{voteId} {
+      allow read, write: if false;
+    }
+
+    match /participation/{participationId} {
+      // Step 3 Privacy Security Rule:
+      // Members can read ONLY their own participation record.
+      // Admins CANNOT inspect individual participation records directly via client SDK.
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      allow write: if false; // All participation writes are Cloud Function only
+    }
+
+    match /voteReceipts/{receiptId} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. AUDIT LOGS & REPORTS
+    // -------------------------------------------------------------------------
+    match /auditLogs/{logId} {
+      allow read, write: if false;
+    }
+
+    match /platformAuditLogs/{logId} {
+      allow read, write: if false;
+    }
+
+    match /userReports/{reportId} {
+      allow read, write: if false;
+    }
+
+    match /platformReports/{reportId} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // DEFAULT DENY
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

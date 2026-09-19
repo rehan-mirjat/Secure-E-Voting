@@ -1,0 +1,60 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn()
+        && ('platformAdmin' in request.auth.token)
+        && request.auth.token.platformAdmin == true;
+    }
+
+    function isOrgMember(orgId) {
+      let membershipId = orgId + '_' + request.auth.uid;
+      return firestore.exists(/databases/(default)/documents/organizationMembers/$(membershipId)) &&
+             firestore.get(/databases/(default)/documents/organizationMembers/$(membershipId)).data.status == 'active';
+    }
+
+    function isOrgAdmin(orgId) {
+      let membershipId = orgId + '_' + request.auth.uid;
+      return isOrgMember(orgId) && (
+        firestore.get(/databases/(default)/documents/organizationMembers/$(membershipId)).data.role == 'owner' ||
+        firestore.get(/databases/(default)/documents/organizationMembers/$(membershipId)).data.role == 'admin'
+      );
+    }
+
+    // Exact filename photo.jpg for candidate photo uploads
+    match /organizations/{orgId}/events/{eventId}/candidates/{candidateId}/photo.jpg {
+      // Read: Active org members can read candidate photos for ACTIVE or CLOSED events.
+      // Org Admins can read candidate photos for all events in their org.
+      // Super Admins can read all photos.
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        isOrgAdmin(orgId) ||
+        (
+          isOrgMember(orgId) &&
+          firestore.get(/databases/(default)/documents/votingEvents/$(eventId)).data.status in ["ACTIVE", "CLOSED"]
+        )
+      );
+
+      // Write: Active Org Owner or Admin in orgId ONLY when event status is DRAFT
+      // AND candidate belongs to orgId and eventId
+      allow write: if isSignedIn()
+        && isOrgAdmin(orgId)
+        && firestore.get(/databases/(default)/documents/votingEvents/$(eventId)).data.status == "DRAFT"
+        && firestore.get(/databases/(default)/documents/candidates/$(candidateId)).data.organizationId == orgId
+        && firestore.get(/databases/(default)/documents/candidates/$(candidateId)).data.votingEventId == eventId
+        && request.resource.contentType.matches('image/jpeg')
+        && request.resource.size <= 5 * 1024 * 1024; // Max 5MB raw payload
+    }
+
+    // Default deny for all other storage paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
