@@ -132,8 +132,8 @@ export const updateVotingEvent = onCall(async (request) => {
           if (Array.isArray(eligibilityUserIds) && eligibilityUserIds.length > 0) {
             throw new HttpsError("invalid-argument", "eligibilityUserIds must be empty when eligibilityType is SELECTED_DEPARTMENTS.");
           }
-          if (!Array.isArray(eligibilityDepartmentIds) || eligibilityDepartmentIds.length === 0) {
-            throw new HttpsError("invalid-argument", "eligibilityDepartmentIds array required for SELECTED_DEPARTMENTS.");
+          if (!Array.isArray(eligibilityDepartmentIds)) {
+            throw new HttpsError("invalid-argument", "eligibilityDepartmentIds must be an array for SELECTED_DEPARTMENTS.");
           }
           for (const deptId of eligibilityDepartmentIds) {
             const deptSnap = await transaction.get(db.collection("departments").doc(deptId));
@@ -147,8 +147,8 @@ export const updateVotingEvent = onCall(async (request) => {
           if (Array.isArray(eligibilityDepartmentIds) && eligibilityDepartmentIds.length > 0) {
             throw new HttpsError("invalid-argument", "eligibilityDepartmentIds must be empty when eligibilityType is SELECTED_MEMBERS.");
           }
-          if (!Array.isArray(eligibilityUserIds) || eligibilityUserIds.length === 0) {
-            throw new HttpsError("invalid-argument", "eligibilityUserIds array required for SELECTED_MEMBERS.");
+          if (!Array.isArray(eligibilityUserIds)) {
+            throw new HttpsError("invalid-argument", "eligibilityUserIds must be an array for SELECTED_MEMBERS.");
           }
           for (const targetUid of eligibilityUserIds) {
             const targetMemberSnap = await transaction.get(db.collection("organizationMembers").doc(`${organizationId}_${targetUid}`));

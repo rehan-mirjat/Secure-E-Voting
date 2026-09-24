@@ -13,22 +13,23 @@ void main() {
       ),
     );
 
-    // Locate widgets
-    final firstNameFinder = find.widgetWithText(TextFormField, 'First Name');
-    final lastNameFinder = find.widgetWithText(TextFormField, 'Last Name');
-    final emailFinder = find.widgetWithText(TextFormField, 'Email Address');
-    final passwordFinder = find.widgetWithText(TextFormField, 'Password');
-    final confirmPasswordFinder = find.widgetWithText(TextFormField, 'Confirm Password');
-    final submitButtonFinder = find.text('Create Identity');
+    // Locate widgets using independent text labels instead of InputDecoration labels
+    final submitButtonFinder = find.text('Create Identity Securely');
 
-    expect(firstNameFinder, findsOneWidget);
-    expect(lastNameFinder, findsOneWidget);
-    expect(emailFinder, findsOneWidget);
-    expect(passwordFinder, findsOneWidget);
-    expect(confirmPasswordFinder, findsOneWidget);
-    expect(submitButtonFinder, findsOneWidget);
-
-    // Test form validation: tap submit with empty fields
+    expect(find.text('FIRST NAME'), findsOneWidget);
+    expect(find.text('LAST NAME'), findsOneWidget);
+    expect(find.text('EMAIL ADDRESS'), findsOneWidget);
+    expect(find.text('PASSWORD'), findsOneWidget);
+    expect(find.text('CONFIRM PASSWORD'), findsOneWidget);
+    
+    // We scroll until the button is visible because the wrapper makes the layout scrollable on mobile
+    await tester.dragUntilVisible(
+      submitButtonFinder,
+      find.byType(SingleChildScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    
     await tester.tap(submitButtonFinder);
     await tester.pump();
 

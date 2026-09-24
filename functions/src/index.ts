@@ -1,7 +1,11 @@
 import { onCall } from "firebase-functions/v2/https";
+import { setGlobalOptions } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 
 admin.initializeApp();
+
+// Set global options to minimize Cloud Run CPU quota requirements on new projects.
+setGlobalOptions({ maxInstances: 1 });
 
 /**
  * Milestone 1: Diagnostics Ping
@@ -50,3 +54,4 @@ export * from "./voting_events/deleteCandidate";
 export * from "./voting_events/createPollOption";
 export * from "./voting_events/updatePollOption";
 export * from "./voting_events/deletePollOption";
+export * from "./voting/castVote";

@@ -59,6 +59,9 @@ class MockAuthService implements AuthService {
   User? get currentUser => MockUser();
 
   @override
+  Stream<User?> get authStateChanges => Stream.value(MockUser());
+
+  @override
   bool get isEmailVerified => true;
 }
 
@@ -78,7 +81,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('My Organizations'), findsOneWidget);
+      expect(find.text('Your Active Organizations'), findsOneWidget);
       expect(find.text('Apex Academic Institute'), findsOneWidget);
       expect(find.text('OWNER'), findsOneWidget);
       expect(find.text('VERIFIED'), findsOneWidget);

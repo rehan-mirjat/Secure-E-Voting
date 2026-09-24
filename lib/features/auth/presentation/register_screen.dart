@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/validators.dart';
 import '../../../services/auth_service.dart';
+import 'widgets/auth_split_layout.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key, this.onBackToLoginTap});
@@ -75,7 +76,33 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _googleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final authService = ref.read(authServiceProvider);
+      final cred = await authService.signInWithGoogle();
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (cred != null && widget.onBackToLoginTap != null) {
+          widget.onBackToLoginTap!();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '');
           _isLoading = false;
         });
       }
@@ -128,125 +155,228 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Account'),
-      ),
-      body: Center(
+    return AuthSplitLayout(
+      child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Text(
-                    'Join SecureVote',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Create your platform identity to participate in organizational voting.',
-                    style: TextStyle(color: AppTheme.textSecondary),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                  Row(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: AppTheme.borderLight),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(40),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _firstNameController,
-                          decoration: const InputDecoration(labelText: 'First Name', prefixIcon: Icon(Icons.person_outline)),
-                          validator: (v) => Validators.required(v, 'First Name'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _lastNameController,
-                          decoration: const InputDecoration(labelText: 'Last Name'),
-                          validator: (v) => Validators.required(v, 'Last Name'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(labelText: 'Email Address', prefixIcon: Icon(Icons.email_outlined)),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: Validators.email,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    validator: Validators.password,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    obscureText: _obscureConfirmPassword,
-                    decoration: InputDecoration(
-                      labelText: 'Confirm Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility),
-                        onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                      ),
-                    ),
-                    validator: (v) => Validators.confirmPassword(v, _passwordController.text),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 24),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppTheme.error.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.error_outline, color: AppTheme.error),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(_error!, style: const TextStyle(color: AppTheme.error)),
+                      Center(
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                            shape: BoxShape.circle,
                           ),
+                          child: const Icon(
+                            Icons.lock_outline,
+                            size: 28,
+                            color: AppTheme.primaryBlue,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Join SecureVote',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.secondaryNavy,
+                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Create your platform identity to vote securely.',
+                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 15),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      AutofillGroup(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('FIRST NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _firstNameController,
+                                        textInputAction: TextInputAction.next,
+                                        autofillHints: const [AutofillHints.givenName],
+                                        decoration: const InputDecoration(hintText: 'First', prefixIcon: Icon(Icons.person_outline, size: 20)),
+                                        validator: (v) => Validators.required(v, 'First Name'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      const Text('LAST NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _lastNameController,
+                                        textInputAction: TextInputAction.next,
+                                        autofillHints: const [AutofillHints.familyName],
+                                        decoration: const InputDecoration(hintText: 'Last', prefixIcon: Icon(Icons.person_outline, size: 20)),
+                                        validator: (v) => Validators.required(v, 'Last Name'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            const Text('EMAIL ADDRESS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _emailController,
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [AutofillHints.email],
+                              decoration: const InputDecoration(hintText: 'user@email.com', prefixIcon: Icon(Icons.email_outlined, size: 20)),
+                              keyboardType: TextInputType.emailAddress,
+                              validator: Validators.email,
+                            ),
+                            const SizedBox(height: 20),
+                            const Text('PASSWORD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [AutofillHints.newPassword],
+                              decoration: InputDecoration(
+                                hintText: '••••••••',
+                                prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                                suffixIcon: IconButton(
+                                  icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, size: 20),
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
+                              ),
+                              validator: Validators.password,
+                            ),
+                            const SizedBox(height: 20),
+                            const Text('CONFIRM PASSWORD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _confirmPasswordController,
+                              obscureText: _obscureConfirmPassword,
+                              textInputAction: TextInputAction.done,
+                              onFieldSubmitted: (_) => _submit(),
+                              autofillHints: const [AutofillHints.newPassword],
+                              decoration: InputDecoration(
+                                hintText: '••••••••',
+                                prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                                suffixIcon: IconButton(
+                                  icon: Icon(_obscureConfirmPassword ? Icons.visibility_off : Icons.visibility, size: 20),
+                                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                ),
+                              ),
+                              validator: (v) => Validators.confirmPassword(v, _passwordController.text),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 24),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppTheme.error.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: AppTheme.error, size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(_error!, style: const TextStyle(color: AppTheme.error, fontSize: 13)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 32),
+                      ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _submit,
+                        icon: _isLoading
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Icon(Icons.shield_outlined, size: 18),
+                        label: Text(_isLoading ? 'Creating Identity...' : 'Create Identity Securely'),
+                      ),
+                      const SizedBox(height: 24),
+                      const Row(
+                        children: [
+                          Expanded(child: Divider()),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 16),
+                            child: Text('OR', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
+                          ),
+                          Expanded(child: Divider()),
                         ],
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _submit,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Text('Create Identity'),
+                      const SizedBox(height: 24),
+                      OutlinedButton.icon(
+                        onPressed: _isLoading ? null : _googleSignIn,
+                        icon: Image.network(
+                          'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
+                          height: 18,
+                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata_rounded, size: 24),
+                        ),
+                        label: const Text('Continue with Google', style: TextStyle(color: AppTheme.secondaryNavy)),
+                      ),
+                      const SizedBox(height: 32),
+                      Center(
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            const Text(
+                              "Already have an account? ",
+                              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                            ),
+                            GestureDetector(
+                              onTap: widget.onBackToLoginTap,
+                              child: const Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  color: AppTheme.primaryBlue,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: TextButton(
-                      onPressed: widget.onBackToLoginTap,
-                      child: const Text('Already have an account? Sign In'),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

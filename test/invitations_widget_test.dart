@@ -69,7 +69,7 @@ void main() {
       final mockRepo = MockOrganizationRepository();
       await tester.pumpWidget(ProviderScope(
         overrides: [organizationRepositoryProvider.overrideWithValue(mockRepo)],
-        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', isOwner: true))),
+        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', organizationName: 'Org 1', isOwner: true))),
       ));
 
       // Empty email
@@ -88,7 +88,7 @@ void main() {
       final mockRepo = MockOrganizationRepository();
       await tester.pumpWidget(ProviderScope(
         overrides: [organizationRepositoryProvider.overrideWithValue(mockRepo)],
-        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', isOwner: true))),
+        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', organizationName: 'Org 1', isOwner: true))),
       ));
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Recipient Email Address *'), 'admin@org.com');
@@ -96,7 +96,7 @@ void main() {
       // Select Admin Role
       await tester.tap(find.byType(DropdownButtonFormField<String>));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Admin (Owner-Only)').last);
+      await tester.tap(find.text('Admin').last);
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Send Invitation'));
@@ -110,21 +110,18 @@ void main() {
       final mockRepo = MockOrganizationRepository();
       await tester.pumpWidget(ProviderScope(
         overrides: [organizationRepositoryProvider.overrideWithValue(mockRepo)],
-        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', isOwner: false))),
+        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', organizationName: 'Org 1', isOwner: false))),
       ));
 
-      await tester.tap(find.byType(DropdownButtonFormField<String>));
-      await tester.pumpAndSettle();
-
+      expect(find.byType(DropdownButtonFormField<String>), findsNothing);
       expect(find.text('Member'), findsWidgets);
-      expect(find.text('Admin (Owner-Only)'), findsNothing);
     });
 
     testWidgets('Successful invitation displays returned raw token and clipboard copy works', (WidgetTester tester) async {
       final mockRepo = MockOrganizationRepository();
       await tester.pumpWidget(ProviderScope(
         overrides: [organizationRepositoryProvider.overrideWithValue(mockRepo)],
-        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', isOwner: true))),
+        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', organizationName: 'Org 1', isOwner: true))),
       ));
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Recipient Email Address *'), 'voter@org.com');
@@ -143,7 +140,7 @@ void main() {
       final mockRepo = MockOrganizationRepository()..shouldFail = true;
       await tester.pumpWidget(ProviderScope(
         overrides: [organizationRepositoryProvider.overrideWithValue(mockRepo)],
-        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', isOwner: true))),
+        child: const MaterialApp(home: Scaffold(body: InviteMemberDialog(organizationId: 'org_1', organizationName: 'Org 1', isOwner: true))),
       ));
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Recipient Email Address *'), 'voter@org.com');

@@ -67,7 +67,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No voting events found.'), findsOneWidget);
-      expect(find.text('Create your first Voting Event'), findsOneWidget);
+      expect(find.text('Create Voting Event'), findsOneWidget);
     });
 
     testWidgets('14.17 Asynchronous loading overlays appear during lifecycle callable execution', (WidgetTester tester) async {

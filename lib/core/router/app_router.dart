@@ -8,10 +8,13 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/email_verification_screen.dart';
 import '../../features/auth/presentation/profile_screen.dart';
 import '../../features/organizations/presentation/organization_list_screen.dart';
+import '../../features/organizations/presentation/membership_directory_screen.dart';
+import '../../features/departments/presentation/departments_screen.dart';
 import '../../features/organizations/presentation/join_organization_screen.dart';
 import '../../features/organizations/presentation/create_organization_screen.dart';
 import '../../features/voting_events/presentation/dashboard/admin_event_dashboard_screen.dart';
 import '../../features/voting_events/presentation/builder/event_builder_screen.dart';
+import '../../features/voting/presentation/cast_vote_screen.dart';
 import '../../services/auth_service.dart';
 import '../../services/firebase_service.dart';
 import '../../features/organizations/presentation/providers/organization_providers.dart';
@@ -190,7 +193,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                    GoRoute(
                      path: 'vote',
-                     builder: (context, state) => Scaffold(body: Center(child: Text('Cast Ballot M5 Stub - ${state.pathParameters['eventId']}'))),
+                     builder: (context, state) => CastVoteScreen(eventId: state.pathParameters['eventId']!),
                    ),
                    GoRoute(
                      path: 'results',
@@ -222,6 +225,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                       },
                       onCancelTap: () => context.go('/orgs'),
                     ),
+                  ),
+                  GoRoute(
+                    path: 'members',
+                    builder: (context, state) => const MembershipDirectoryScreen(),
+                  ),
+                  GoRoute(
+                    path: 'departments',
+                    builder: (context, state) => const DepartmentsScreen(),
                   ),
                 ]
               ),

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../services/auth_service.dart';
 import '../domain/organization_enums.dart';
 import 'providers/organization_providers.dart';
 
@@ -27,24 +26,11 @@ class OrganizationListScreen extends ConsumerWidget {
     final activeOrgId = activeOrgStateAsync.valueOrNull?.context?.organization.id;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Organizations'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign Out',
-            onPressed: () async {
-              await ref.read(authServiceProvider).signOut();
-              if (onSignOutTap != null) onSignOutTap!();
-            },
-          ),
-        ],
-      ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(32),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
+            constraints: const BoxConstraints(maxWidth: 800),
             child: membershipsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, stack) => Center(
@@ -123,73 +109,128 @@ class OrganizationListScreen extends ConsumerWidget {
                           final isActiveContext = org.id == activeOrgId;
 
                           return Card(
-                            margin: const EdgeInsets.only(bottom: 16),
+                            margin: const EdgeInsets.only(bottom: 20),
+                            elevation: isActiveContext ? 4 : 0,
+                            shadowColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(20),
                               side: BorderSide(
                                 color: isActiveContext ? AppTheme.primaryBlue : AppTheme.borderLight,
-                                width: isActiveContext ? 2.0 : 1.0,
+                                width: isActiveContext ? 1.5 : 1.0,
                               ),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              hoverColor: AppTheme.surfaceBlue.withValues(alpha: 0.3),
+                              onTap: isActiveContext ? null : () {
+                                ref.read(activeOrgIdProvider.notifier).selectOrganization(org.id);
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 64,
+                                      height: 64,
+                                      decoration: BoxDecoration(
+                                        color: isActiveContext ? AppTheme.surfaceBlue : AppTheme.backgroundLight,
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      child: Icon(
+                                        org.type == 'academic' ? Icons.school : Icons.business,
+                                        size: 32,
+                                        color: isActiveContext ? AppTheme.primaryBlue : AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 24),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            org.name,
+                                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Wrap(
+                                            crossAxisAlignment: WrapCrossAlignment.center,
+                                            children: [
+                                              const Icon(Icons.location_on_outlined, size: 14, color: AppTheme.textSecondary),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                '${org.type.toUpperCase()} • ${org.city}, ${org.country}',
+                                                style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            children: [
+                                              if (matchingMember != null) _buildRoleBadge(matchingMember.role),
+                                              const SizedBox(width: 8),
+                                              _buildStatusBadge(org.status),
+                                            ],
+                                          ),
+                                          if (isActiveContext) ...[
+                                            const SizedBox(height: 20),
+                                            Wrap(
+                                              spacing: 12,
+                                              runSpacing: 12,
+                                              children: [
+                                                ElevatedButton.icon(
+                                                  onPressed: () => context.go('/orgs/members'),
+                                                  icon: const Icon(Icons.people_outline, size: 18),
+                                                  label: const Text('Members & Invites'),
+                                                ),
+                                                OutlinedButton.icon(
+                                                  onPressed: () => context.go('/orgs/departments'),
+                                                  icon: const Icon(Icons.domain_outlined, size: 18),
+                                                  label: const Text('Departments'),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                    if (isActiveContext)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.surfaceBlue,
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
                                           children: [
-                                            Text(
-                                              org.name,
-                                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${org.type.toUpperCase()} • ${org.city}, ${org.country}',
-                                              style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w500),
-                                            ),
+                                            Icon(Icons.check_circle, size: 18, color: AppTheme.primaryBlue),
+                                            SizedBox(width: 8),
+                                            Text('Active Organization', style: TextStyle(color: AppTheme.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13)),
+                                          ],
+                                        ),
+                                      )
+                                    else
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.backgroundLight,
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(color: AppTheme.borderLight),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.swap_horiz, size: 18, color: AppTheme.primaryBlue),
+                                            SizedBox(width: 8),
+                                            Text('Switch Context', style: TextStyle(color: AppTheme.primaryBlue, fontWeight: FontWeight.bold, fontSize: 13)),
                                           ],
                                         ),
                                       ),
-                                      if (matchingMember != null)
-                                        _buildRoleBadge(matchingMember.role),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      _buildStatusBadge(org.status),
-                                      if (isActiveContext)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: const Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.check_circle, size: 16, color: AppTheme.primaryBlue),
-                                              SizedBox(width: 6),
-                                              Text('Active Context', style: TextStyle(color: AppTheme.primaryBlue, fontWeight: FontWeight.bold, fontSize: 12)),
-                                            ],
-                                          ),
-                                        )
-                                      else
-                                        OutlinedButton(
-                                          onPressed: () {
-                                            ref.read(activeOrgIdProvider.notifier).selectOrganization(org.id);
-                                          },
-                                          child: const Text('Switch Context'),
-                                        ),
-                                    ],
-                                  ),
-                                ],
+                                    const SizedBox(width: 16),
+                                    const Icon(Icons.chevron_right, color: AppTheme.borderLight),
+                                  ],
+                                ),
                               ),
                             ),
                           );

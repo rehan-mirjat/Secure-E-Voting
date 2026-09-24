@@ -13,7 +13,7 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return isSignedIn()
-        && request.auth.token.platformAdmin == true;
+      && request.auth.token.platformAdmin == true;
     }
 
     function getMembership(orgId) {
@@ -24,7 +24,7 @@ service cloud.firestore {
     function isOrgMember(orgId) {
       let membershipId = orgId + '_' + request.auth.uid;
       return exists(/databases/$(database)/documents/organizationMembers/$(membershipId)) &&
-             getMembership(orgId).status == 'active';
+      getMembership(orgId).status == 'active';
     }
 
     function isOrgAdmin(orgId) {
@@ -41,9 +41,8 @@ service cloud.firestore {
       allow read: if isSelf(userId) || isSuperAdmin();
       allow create: if false; // Handled exclusively via completeRegistration Cloud Function
 
-      // Profile Editing Security (Step 8 Hardened):
-      // Allow client updates ONLY for cosmetic fields on own profile.
-      // Super Admins must also use dedicated Cloud Functions for administrative profile changes.
+      // Cosmetic-only fields, per SRS §6/Firestore Spec §14-15.
+      // Security-sensitive fields (status, role, platformAdmin, createdAt) stay server-only.
       allow update: if isSelf(userId) && (
         request.resource.data.diff(resource.data).affectedKeys()
           .hasOnly(["firstName", "lastName", "displayName", "photoUrl", "phoneNumber"])
@@ -55,29 +54,59 @@ service cloud.firestore {
     // 2. ORGANIZATIONS
     // -------------------------------------------------------------------------
     match /organizations/{organizationId} {
-      // Step 3 Hardened Read Rule:
-      // Organization metadata is strictly readable ONLY by active members or Super Admins.
-      // Unauthenticated or non-member clients CANNOT read organization documents.
       allow read: if isSignedIn() && (
         isOrgMember(organizationId) ||
         isSuperAdmin()
       );
-      allow write: if false; // All organization writes remain Cloud Function only
+
+      allow create: if false; // Cloud Function only (createOrganization)
+
+      // OPTION A (matches Firestore Rules Spec §17/§46 exactly):
+      // let the Owner update branding fields directly, nothing else.
+      // Uncomment to enable a direct-write path instead of routing branding
+      // edits through an updateOrganization Cloud Function.
+      //
+      // allow update: if isSignedIn() && (
+      //   isSuperAdmin() ||
+      //   (
+      //     getMembership(organizationId).role == 'owner' &&
+      //     isOrgMember(organizationId) &&
+      //     request.resource.data.diff(resource.data).affectedKeys()
+      //       .hasOnly(["name", "description", "logoUrl", "brandColors", "website"])
+      //   )
+      // );
+      //
+      // OPTION B (current choice — stricter than the doc's skeleton):
+      // all org mutations, including branding, go through Cloud Functions.
+      // Valid per §17 ("Owner or authorized backend logic"), but requires an
+      // updateOrganization Cloud Function to exist for branding changes.
+      allow update: if false;
+
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------------------
     // 3. MEMBERSHIPS & INVITES
     // -------------------------------------------------------------------------
     match /organizationMembers/{membershipId} {
-      // Step 1 Read Rule: Users can query & read their own membership documents
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
+        isOrgAdmin(resource.data.organizationId) ||
         isSuperAdmin()
       );
       allow write: if false; // All membership writes remain Cloud Function only
     }
 
+    // Firestore Rules Spec §13 lists Read = "Recipient/admin" for invitations.
+    // Deny-all is the safe default until recipient/admin matching is implemented;
+    // swap in the commented rule once invitation docs carry a resolvable
+    // recipientUid (or recipientEmail matched against a verified custom claim).
     match /organizationInvitations/{invitationId} {
+      // allow read: if isSignedIn() && (
+      //   resource.data.recipientUid == request.auth.uid ||
+      //   isOrgAdmin(resource.data.organizationId) ||
+      //   isSuperAdmin()
+      // );
       allow read, write: if false; // Server-only via Cloud Functions
     }
 
@@ -89,14 +118,20 @@ service cloud.firestore {
       allow read, write: if false; // Server-only via Cloud Functions
     }
 
+    // Firestore Rules Spec §13 lists Read = "Admin" for joiningCodes, but the
+    // §46 skeleton denies all reads. Codes should be stored as codeHash (§28
+    // of the backend doc), so exposing the doc to Admins is low-risk even if
+    // it contains the hash. Deny-all kept as the safe default; uncomment to
+    // grant Admin visibility into active/rotated codes.
     match /joiningCodes/{codeId} {
+      // allow read: if isSignedIn() && (
+      //   isOrgAdmin(resource.data.organizationId) ||
+      //   isSuperAdmin()
+      // );
       allow read, write: if false;
     }
 
     match /departments/{departmentId} {
-      // Step 6 Security Rule: Member Read-Only Access
-      // Query validation explicitly enforces organization isolation.
-      // A member can only read and query departments for organizations they actively belong to.
       allow read: if isSignedIn() && (
         isOrgMember(resource.data.organizationId) ||
         isSuperAdmin()
@@ -108,10 +143,10 @@ service cloud.firestore {
     // 4. VOTING EVENTS, CANDIDATES & OPTIONS
     // -------------------------------------------------------------------------
     match /votingEvents/{eventId} {
-      // Step 1 Hardened Read Rule:
-      // - Super Admins can read all events.
-      // - Org Owners/Admins can read all events in their org (DRAFT, SCHEDULED, ACTIVE, CLOSED, CANCELLED, ARCHIVED).
-      // - Regular Members can read ONLY ACTIVE and CLOSED events in their org.
+      // NOTE: "CANCELLED" isn't in the SRS §7.2 lifecycle (Draft/Scheduled/
+      // Active/Closed/Archived). Either add it to the SRS or drop it here so
+      // the two docs stay in sync — left as-is functionally since isOrgAdmin
+      // already sees every status regardless of this list.
       allow read: if isSignedIn() && (
         isSuperAdmin() ||
         (
@@ -126,10 +161,6 @@ service cloud.firestore {
     }
 
     match /candidates/{candidateId} {
-      // Step 2 Hardened Read Rule:
-      // - Super Admins can read all candidates.
-      // - Org Members can read candidates ONLY for ACTIVE or CLOSED events in their org.
-      // - Org Admins can read candidates for all events in their org (including DRAFT & SCHEDULED).
       allow read: if isSignedIn() && (
         isSuperAdmin() ||
         (
@@ -161,13 +192,12 @@ service cloud.firestore {
     // 5. VOTES & PARTICIPATION
     // -------------------------------------------------------------------------
     match /votes/{voteId} {
+      // Firestore Rules Spec §32: "The Flutter application has no direct
+      // access path to vote records." No exception, not even Super Admin.
       allow read, write: if false;
     }
 
     match /participation/{participationId} {
-      // Step 3 Privacy Security Rule:
-      // Members can read ONLY their own participation record.
-      // Admins CANNOT inspect individual participation records directly via client SDK.
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid ||
         isSuperAdmin()
@@ -175,27 +205,51 @@ service cloud.firestore {
       allow write: if false; // All participation writes are Cloud Function only
     }
 
+    // FIX: Firestore Rules Spec §39: "A voter may read their own receipt."
+    // Previously denied to everyone, which breaks the "Vote Success /
+    // Receipt" screen (SRS §28).
     match /voteReceipts/{receiptId} {
-      allow read, write: if false;
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        isSuperAdmin()
+      );
+      allow write: if false; // Server-only (generateReceipt Cloud Function)
     }
 
     // -------------------------------------------------------------------------
     // 6. AUDIT LOGS & REPORTS
     // -------------------------------------------------------------------------
+    // FIX: Firestore Rules Spec §41: "Owner/Admin may read audit records
+    // belonging to their organization where authorized." SRS §3.2/§3.3 list
+    // this as a stated Owner/Admin privilege. Previously denied to everyone.
     match /auditLogs/{logId} {
-      allow read, write: if false;
+      allow read: if isSignedIn() && (
+        isOrgAdmin(resource.data.organizationId) ||
+        isSuperAdmin()
+      );
+      allow write: if false;
     }
 
+    // FIX: Firestore Rules Spec §43: "Only Platform Super Admins may read
+    // platform audit logs." Previously denied to everyone, including them.
     match /platformAuditLogs/{logId} {
-      allow read, write: if false;
+      allow read: if isSuperAdmin();
+      allow write: if false;
     }
 
+    // No spec section defines userReports explicitly (not in the §4
+    // collection list). Deny-all kept as the safe default — revisit once
+    // the reporting workflow (who files, who reviews) is specified.
     match /userReports/{reportId} {
       allow read, write: if false;
     }
 
+    // FIX: Firestore Rules Spec §44: "Platform reports shall be restricted
+    // to Platform Super Admins" (i.e. readable by them). Previously denied
+    // to everyone, including them.
     match /platformReports/{reportId} {
-      allow read, write: if false;
+      allow read: if isSuperAdmin();
+      allow write: if false;
     }
 
     // -------------------------------------------------------------------------

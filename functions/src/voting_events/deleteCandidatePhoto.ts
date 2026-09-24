@@ -77,7 +77,7 @@ export const deleteCandidatePhoto = onCall(async (request) => {
     if (targetPhotoPath) {
       try {
         const storage = getStorage();
-        const bucket = storage.bucket("e-voteing-system.appspot.com");
+        const bucket = storage.bucket("vote-d1ae4.firebasestorage.app");
         await bucket.file(targetPhotoPath).delete();
       } catch (e) {
         // Storage cleanup errors do not fail the completed Firestore transaction

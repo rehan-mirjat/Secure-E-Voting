@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../organizations/domain/organization_enums.dart';
@@ -110,32 +111,67 @@ class DepartmentsScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final dept = departments[index];
               return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: const Icon(Icons.domain, color: AppTheme.primaryBlue),
-                  title: Text(dept.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text(dept.description.isNotEmpty ? dept.description : 'No description', maxLines: 2, overflow: TextOverflow.ellipsis),
-                  trailing: isManager
-                      ? PopupMenuButton<String>(
-                          onSelected: (value) {
-                            if (value == 'edit') {
-                              showDialog(
-                                context: context,
-                                builder: (context) => CreateEditDepartmentDialog(
-                                  organizationId: orgContext.organization.id,
-                                  departmentToEdit: dept,
-                                ),
-                              );
-                            } else if (value == 'delete') {
-                              _showDeleteConfirmation(context, ref, dept);
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: AppTheme.error))),
-                          ],
-                        )
-                      : null,
+                margin: const EdgeInsets.only(bottom: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: AppTheme.borderLight),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  hoverColor: AppTheme.surfaceBlue.withValues(alpha: 0.3),
+                  onTap: () => context.go('/orgs/departments/${dept.id}'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(Icons.domain, color: AppTheme.primaryBlue, size: 28),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(dept.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
+                              if (dept.description.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Text(dept.description, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
+                              ]
+                            ],
+                          ),
+                        ),
+                        if (isManager) ...[
+                          const SizedBox(width: 16),
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => CreateEditDepartmentDialog(
+                                    organizationId: orgContext.organization.id,
+                                    departmentToEdit: dept,
+                                  ),
+                                );
+                              } else if (value == 'delete') {
+                                _showDeleteConfirmation(context, ref, dept);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Edit')])),
+                              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: AppTheme.error), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppTheme.error))])),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ),
               );
             },

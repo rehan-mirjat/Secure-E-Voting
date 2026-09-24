@@ -3,8 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:secure_e_voting/features/organizations/data/organization_repository.dart';
+import 'package:secure_e_voting/features/organizations/domain/organization_member.dart';
 import 'package:secure_e_voting/features/organizations/presentation/join_organization_screen.dart';
 import 'package:secure_e_voting/services/auth_service.dart';
+
+class MockUser extends Fake implements User {
+  @override
+  final String uid = 'test_user';
+}
 
 class MockOrganizationRepository implements OrganizationRepository {
   @override
@@ -20,6 +26,11 @@ class MockOrganizationRepository implements OrganizationRepository {
     }
     return (organizationId: 'org_joined_123', organizationName: 'Apex University');
   }
+
+  @override
+  Stream<List<OrganizationMember>> watchUserMemberships(String userId) {
+    return Stream.value([]);
+  }
 }
 
 class MockAuthService implements AuthService {
@@ -27,7 +38,10 @@ class MockAuthService implements AuthService {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
-  User? get currentUser => null;
+  User? get currentUser => MockUser();
+
+  @override
+  Stream<User?> get authStateChanges => Stream.value(MockUser());
 
   @override
   bool get isEmailVerified => true;

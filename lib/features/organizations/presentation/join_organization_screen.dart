@@ -45,11 +45,9 @@ class _JoinOrganizationScreenState extends ConsumerState<JoinOrganizationScreen>
       final repo = ref.read(organizationRepositoryProvider);
       final result = await repo.joinOrganizationWithCode(_codeController.text);
 
-      // Refresh Riverpod memberships from server
+      // Refresh Riverpod memberships and organizations from server
       ref.invalidate(userMembershipsProvider);
-
-      // Wait for memberships provider to update with newly joined membership
-      await ref.read(userMembershipsProvider.future);
+      ref.invalidate(userOrganizationsProvider);
 
       // Select newly joined organization context
       await ref.read(activeOrgIdProvider.notifier).selectOrganization(result.organizationId);

@@ -33,15 +33,6 @@ class _EligibilityStepState extends ConsumerState<EligibilityStep> {
   }
 
   void _submit() async {
-    if (_type == EligibilityType.selectedDepartments && _selectedDepts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one department.')));
-      return;
-    }
-    if (_type == EligibilityType.selectedMembers && _selectedUsers.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select at least one member.')));
-      return;
-    }
-
     ref.read(draftEventProvider(widget.orgId).notifier).updateEligibility(_type, _selectedDepts, _selectedUsers);
 
     // Now, create the DRAFT on the server!

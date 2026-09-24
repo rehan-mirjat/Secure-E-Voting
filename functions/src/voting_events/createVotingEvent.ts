@@ -105,8 +105,10 @@ export const createVotingEvent = onCall(async (request) => {
     if (Array.isArray(eligibilityUserIds) && eligibilityUserIds.length > 0) {
       throw new HttpsError("invalid-argument", "eligibilityUserIds must be empty when eligibilityType is SELECTED_DEPARTMENTS.");
     }
-    if (!Array.isArray(eligibilityDepartmentIds) || eligibilityDepartmentIds.length === 0) {
-      throw new HttpsError("invalid-argument", "eligibilityDepartmentIds array required for SELECTED_DEPARTMENTS.");
+    // DRAFT creation logic: Do NOT enforce array > 0 length at creation.
+    // An admin must be able to create a DRAFT event even if 0 departments currently exist.
+    if (!Array.isArray(eligibilityDepartmentIds)) {
+      throw new HttpsError("invalid-argument", "eligibilityDepartmentIds must be an array for SELECTED_DEPARTMENTS.");
     }
     for (const deptId of eligibilityDepartmentIds) {
       const deptSnap = await db.collection("departments").doc(deptId).get();
@@ -120,8 +122,10 @@ export const createVotingEvent = onCall(async (request) => {
     if (Array.isArray(eligibilityDepartmentIds) && eligibilityDepartmentIds.length > 0) {
       throw new HttpsError("invalid-argument", "eligibilityDepartmentIds must be empty when eligibilityType is SELECTED_MEMBERS.");
     }
-    if (!Array.isArray(eligibilityUserIds) || eligibilityUserIds.length === 0) {
-      throw new HttpsError("invalid-argument", "eligibilityUserIds array required for SELECTED_MEMBERS.");
+    // DRAFT creation logic: Do NOT enforce array > 0 length at creation.
+    // An admin must be able to create a DRAFT event even if 0 members currently exist.
+    if (!Array.isArray(eligibilityUserIds)) {
+      throw new HttpsError("invalid-argument", "eligibilityUserIds must be an array for SELECTED_MEMBERS.");
     }
     for (const targetUid of eligibilityUserIds) {
       const targetMemberSnap = await db.collection("organizationMembers").doc(`${organizationId}_${targetUid}`).get();

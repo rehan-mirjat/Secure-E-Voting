@@ -18,11 +18,35 @@ class PendingInvitationsWidget extends ConsumerWidget {
   final String organizationId;
   final bool isOwner;
 
+  String _formatExpiry(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return '';
+    try {
+      final expires = DateTime.parse(isoDate);
+      final diff = expires.difference(DateTime.now());
+      if (diff.inDays >= 1) {
+        return 'Expires in ${diff.inDays} ${diff.inDays == 1 ? "day" : "days"}';
+      } else if (diff.inHours >= 1) {
+        return 'Expires in ${diff.inHours} ${diff.inHours == 1 ? "hour" : "hours"}';
+      } else if (diff.inMinutes >= 1) {
+        return 'Expires in ${diff.inMinutes} ${diff.inMinutes == 1 ? "minute" : "minutes"}';
+      } else {
+        return 'Expiring soon';
+      }
+    } catch (_) {
+      return '';
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final invitationsAsync = ref.watch(pendingInvitationsProvider(organizationId));
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppTheme.borderLight),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -36,7 +60,7 @@ class PendingInvitationsWidget extends ConsumerWidget {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.refresh),
+                  icon: const Icon(Icons.refresh, size: 20),
                   tooltip: 'Refresh Invitations',
                   onPressed: () => ref.invalidate(pendingInvitationsProvider(organizationId)),
                 ),
@@ -74,15 +98,35 @@ class PendingInvitationsWidget extends ConsumerWidget {
                     final email = item['email'] as String? ?? '';
                     final role = item['role'] as String? ?? 'member';
                     final invitationId = item['invitationId'] as String? ?? '';
+                    final expiresAtIso = item['expiresAt'] as String?;
+                    final expiryText = _formatExpiry(expiresAtIso);
 
                     final isAdminRole = role.toLowerCase() == 'admin';
                     final canRevoke = isOwner || !isAdminRole;
 
                     return ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.mark_email_unread_outlined, color: AppTheme.primaryBlue),
-                      title: Text(email, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: Text('Role: ${role.toUpperCase()}', style: const TextStyle(fontSize: 12)),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      leading: const Icon(Icons.mark_email_unread_outlined, color: AppTheme.primaryBlue, size: 22),
+                      title: Row(
+                        children: [
+                          Text(email, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.secondaryNavy)),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: role.toLowerCase() == 'admin' ? AppTheme.primaryBlue.withValues(alpha: 0.1) : Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              role.toUpperCase(),
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: role.toLowerCase() == 'admin' ? AppTheme.primaryBlue : AppTheme.secondaryNavy),
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: expiryText.isNotEmpty
+                          ? Text(expiryText, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary))
+                          : null,
                       trailing: canRevoke
                           ? OutlinedButton(
                               onPressed: () async {
@@ -91,7 +135,7 @@ class PendingInvitationsWidget extends ConsumerWidget {
                                   ref.invalidate(pendingInvitationsProvider(organizationId));
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Invitation revoked successfully.')),
+                                      const SnackBar(content: Text('Invitation revoked successfully.'), backgroundColor: AppTheme.success),
                                     );
                                   }
                                 } catch (e) {

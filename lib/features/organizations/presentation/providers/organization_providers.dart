@@ -9,7 +9,7 @@ import '../../domain/organization_member.dart';
 
 /// Streams the list of active organization memberships for the current user.
 final userMembershipsProvider = StreamProvider<List<OrganizationMember>>((ref) {
-  final user = ref.watch(authServiceProvider).currentUser;
+  final user = ref.watch(authStateChangesProvider).value;
   if (user == null) {
     return Stream.value([]);
   }
@@ -48,13 +48,21 @@ final userOrganizationsProvider = StreamProvider<List<Organization>>((ref) async
 /// Manages the user-specific selected organization ID string and local storage.
 class ActiveOrgIdNotifier extends StateNotifier<String?> {
   ActiveOrgIdNotifier(this._ref) : super(null) {
+    // Re-evaluate saved ID whenever auth state changes (e.g., login/logout)
+    _ref.listen(authStateChangesProvider, (previous, next) {
+      if (next.value != null) {
+        _loadSavedOrgId();
+      } else {
+        state = null; // Clear on logout
+      }
+    });
     _loadSavedOrgId();
   }
 
   final Ref _ref;
 
   Future<void> _loadSavedOrgId() async {
-    final user = _ref.read(authServiceProvider).currentUser;
+    final user = _ref.read(authStateChangesProvider).value;
     if (user == null) {
       state = null;
       return;
@@ -66,7 +74,7 @@ class ActiveOrgIdNotifier extends StateNotifier<String?> {
   }
 
   Future<void> selectOrganization(String orgId) async {
-    final user = _ref.read(authServiceProvider).currentUser;
+    final user = _ref.read(authStateChangesProvider).value;
     if (user == null) return;
 
     state = orgId;
@@ -76,7 +84,7 @@ class ActiveOrgIdNotifier extends StateNotifier<String?> {
   }
 
   Future<void> clearSelection() async {
-    final user = _ref.read(authServiceProvider).currentUser;
+    final user = _ref.read(authStateChangesProvider).value;
     state = null;
     if (user != null) {
       final prefs = await SharedPreferences.getInstance();

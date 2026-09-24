@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -32,6 +34,40 @@ class UserRepository {
       'lastName': trimmedLast,
       'displayName': displayName,
     });
+  }
+
+  Future<String> uploadProfilePhoto({
+    required String uid,
+    required List<int> imageBytes,
+  }) async {
+    final currentUser = _firebase.auth.currentUser;
+    if (currentUser == null || currentUser.uid != uid) {
+      throw Exception('Unauthorized profile photo update.');
+    }
+
+    // Enforce 500 KB (512,000 bytes) limit
+    if (imageBytes.length > 512000) {
+      throw Exception('Profile photo exceeds 500 KB size limit (512,000 bytes).');
+    }
+
+    // Upload to user-scoped path: users/{uid}/profile/avatar.jpg
+    final storageRef = _firebase.storage.ref().child('users/$uid/profile/avatar.jpg');
+    final uploadTask = await storageRef.putData(
+      Uint8List.fromList(imageBytes),
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+
+    final downloadUrl = await uploadTask.ref.getDownloadURL();
+
+    // Update Firestore
+    await _firebase.firestore
+        .collection(AppConstants.usersCollection)
+        .doc(uid)
+        .update({
+      'photoUrl': downloadUrl,
+    });
+
+    return downloadUrl;
   }
 }
 

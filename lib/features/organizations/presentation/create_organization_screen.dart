@@ -1,5 +1,7 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/validators.dart';
@@ -29,6 +31,7 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
   final _cityController = TextEditingController();
   final _websiteController = TextEditingController();
 
+  Uint8List? _selectedLogoBytes;
   String _selectedType = 'academic';
   bool _isLoading = false;
   String? _error;
@@ -54,16 +57,20 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
   }
 
   String? _validateWebsite(String? value) {
-    if (value == null || value.trim().isEmpty) return null; // Optional
-    final trimmed = value.trim();
-    if (!trimmed.startsWith('https://')) {
-      return 'Website must start with https://';
+    return Validators.website(value);
+  }
+
+  Future<void> _pickLogo() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      imageQuality: 85,
+    );
+    if (file != null) {
+      final bytes = await file.readAsBytes();
+      setState(() => _selectedLogoBytes = bytes);
     }
-    final regex = RegExp(r'^https:\/\/[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(\/.*)?$');
-    if (!regex.hasMatch(trimmed)) {
-      return 'Enter a valid HTTPS website URL';
-    }
-    return null;
   }
 
   Future<void> _submit() async {
@@ -85,6 +92,26 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
         city: _cityController.text,
         website: _websiteController.text.trim().isNotEmpty ? _websiteController.text : null,
       );
+
+      // Post-Creation Logo Upload Flow (Rule 4)
+      if (_selectedLogoBytes != null) {
+        try {
+          await repo.uploadOrganizationLogo(
+            organizationId: orgId,
+            imageBytes: _selectedLogoBytes!,
+          );
+        } catch (logoErr) {
+          // Organization creation remains successful even if logo fails
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Organization created, but logo upload failed: ${logoErr.toString().replaceAll('Exception: ', '')}'),
+                backgroundColor: AppTheme.warning,
+              ),
+            );
+          }
+        }
+      }
 
       // Refresh Riverpod memberships from server
       ref.invalidate(userMembershipsProvider);
@@ -136,11 +163,21 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
-                    Icons.domain_add_outlined,
-                    size: 64,
-                    color: AppTheme.primaryBlue,
+                  Center(
+                    child: GestureDetector(
+                      onTap: _pickLogo,
+                      child: CircleAvatar(
+                        radius: 40,
+                        backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                        backgroundImage: _selectedLogoBytes != null ? MemoryImage(_selectedLogoBytes!) : null,
+                        child: _selectedLogoBytes == null
+                            ? const Icon(Icons.add_a_photo_outlined, size: 36, color: AppTheme.primaryBlue)
+                            : null,
+                      ),
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  const Text('Tap to select Organization Logo (Optional)', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
                   const SizedBox(height: 20),
                   const Text(
                     'Register an Organization',
@@ -161,6 +198,7 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
 
                   TextFormField(
                     controller: _nameController,
+                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Organization Name *',
                       prefixIcon: Icon(Icons.business_outlined),
@@ -194,6 +232,7 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
                   TextFormField(
                     controller: _descriptionController,
                     maxLines: 3,
+                    textInputAction: TextInputAction.newline,
                     decoration: const InputDecoration(
                       labelText: 'Description',
                       hintText: 'Brief summary of the organization...',
@@ -209,6 +248,7 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
 
                   TextFormField(
                     controller: _emailController,
+                    textInputAction: TextInputAction.next,
                     decoration: const InputDecoration(
                       labelText: 'Official Contact Email *',
                       prefixIcon: Icon(Icons.email_outlined),
@@ -224,6 +264,7 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
                       Expanded(
                         child: TextFormField(
                           controller: _countryController,
+                          textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
                             labelText: 'Country *',
                             prefixIcon: Icon(Icons.flag_outlined),
@@ -235,6 +276,7 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
                       Expanded(
                         child: TextFormField(
                           controller: _cityController,
+                          textInputAction: TextInputAction.next,
                           decoration: const InputDecoration(
                             labelText: 'City *',
                             prefixIcon: Icon(Icons.location_city_outlined),
@@ -248,6 +290,8 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
 
                   TextFormField(
                     controller: _websiteController,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _submit(),
                     decoration: const InputDecoration(
                       labelText: 'Website URL (Optional)',
                       prefixIcon: Icon(Icons.language_outlined),

@@ -31,13 +31,22 @@ void main() {
 
     // Verify main components exist
     expect(find.text('Welcome Back'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Email Address'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
-    expect(find.text('Sign In'), findsOneWidget);
+    // Since we separated labels from the InputDecoration 'labelText', we find by independent text widget.
+    expect(find.text('EMAIL ADDRESS'), findsOneWidget);
+    expect(find.text('PASSWORD'), findsOneWidget);
+    expect(find.text('Sign In Securely'), findsOneWidget);
     expect(find.text('Create Account'), findsOneWidget);
 
-    // Test form validation: tap submit with empty inputs
-    await tester.tap(find.text('Sign In'));
+    // Test form validation: scroll to submit and tap with empty inputs
+    final submitButton = find.text('Sign In Securely');
+    await tester.dragUntilVisible(
+      submitButton,
+      find.byType(SingleChildScrollView),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+    
+    await tester.tap(submitButton);
     await tester.pump();
 
     expect(find.text('Email is required'), findsOneWidget);

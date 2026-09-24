@@ -41,48 +41,46 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyALxPYequ5-mGJaCcwh9rGkXaEEw9kqcF4',
-    appId: '1:1045202096686:web:8b76d772ec45c3cb9205bf',
-    messagingSenderId: '1045202096686',
-    projectId: 'e-voteing-system',
-    authDomain: 'e-voteing-system.firebaseapp.com',
-    storageBucket: 'e-voteing-system.firebasestorage.app',
-    measurementId: 'G-6S4YWVN40J',
+    apiKey: 'AIzaSyCn_uaF_eWaUlhgffx88fhhwvgaVj-yBL4',
+    appId: '1:799022853031:web:db28a6ad51906f8ce8e482',
+    messagingSenderId: '799022853031',
+    projectId: 'vote-d1ae4',
+    authDomain: 'vote-d1ae4.firebaseapp.com',
+    storageBucket: 'vote-d1ae4.firebasestorage.app',
+    measurementId: 'G-ZSS751SMED',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB2qhQCVID81_wkiHEiUYHa3Ln144zmJpQ',
-    appId: '1:1045202096686:android:0199f5cd9923d3e89205bf',
-    messagingSenderId: '1045202096686',
-    projectId: 'e-voteing-system',
-    storageBucket: 'e-voteing-system.firebasestorage.app',
+    apiKey: 'AIzaSyAJj10XdThIZUIH_jXz79FN5dygom1dtE4',
+    appId: '1:799022853031:android:4f87536d67a463b9e8e482',
+    messagingSenderId: '799022853031',
+    projectId: 'vote-d1ae4',
+    storageBucket: 'vote-d1ae4.firebasestorage.app',
   );
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBph-Eesstvywv69F-I7NfAV1hGzfp7iO8',
-    appId: '1:1045202096686:ios:ec18e70349ffa8869205bf',
-    messagingSenderId: '1045202096686',
-    projectId: 'e-voteing-system',
-    storageBucket: 'e-voteing-system.firebasestorage.app',
-    iosClientId: '1045202096686-m0p2b6ssqr0b09ur9edsjqjfmcttubov.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCBljxGLXMfeZjbZRbmqJPFzHOMTEV35Cg',
+    appId: '1:799022853031:ios:bd66dbad37d10affe8e482',
+    messagingSenderId: '799022853031',
+    projectId: 'vote-d1ae4',
+    storageBucket: 'vote-d1ae4.firebasestorage.app',
     iosBundleId: 'com.secureevoting.secureEVoting',
   );
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCN0ghUOtFKKu3iUwUDNhlPWuhpIvP5zug',
-    appId: '1:591897856413:ios:47045893681e0e23974774',
-    messagingSenderId: '591897856413',
-    projectId: 'e-voting-system-a44d6',
-    storageBucket: 'e-voting-system-a44d6.firebasestorage.app',
-    iosClientId: '591897856413-2a4lgflgug3v67qqum6uvnsa9b3qloee.apps.googleusercontent.com',
+    apiKey: 'AIzaSyCBljxGLXMfeZjbZRbmqJPFzHOMTEV35Cg',
+    appId: '1:799022853031:ios:bd66dbad37d10affe8e482',
+    messagingSenderId: '799022853031',
+    projectId: 'vote-d1ae4',
+    storageBucket: 'vote-d1ae4.firebasestorage.app',
     iosBundleId: 'com.secureevoting.secureEVoting',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyAwfvqSD4daZK_9CHJQYJRpuZWDkL0SvI4',
-    appId: '1:591897856413:web:6c2db3014170f6ee974774',
-    messagingSenderId: '591897856413',
-    projectId: 'e-voting-system-a44d6',
-    authDomain: 'e-voting-system-a44d6.firebaseapp.com',
-    storageBucket: 'e-voting-system-a44d6.firebasestorage.app',
-    measurementId: 'G-S70ZCTRPYX',
+    apiKey: 'AIzaSyCn_uaF_eWaUlhgffx88fhhwvgaVj-yBL4',
+    appId: '1:799022853031:web:6c559128016b68d6e8e482',
+    messagingSenderId: '799022853031',
+    projectId: 'vote-d1ae4',
+    authDomain: 'vote-d1ae4.firebaseapp.com',
+    storageBucket: 'vote-d1ae4.firebasestorage.app',
+    measurementId: 'G-LE684ZW3MB',
   );
 }

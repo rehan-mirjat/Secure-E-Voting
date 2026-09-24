@@ -9,10 +9,7 @@ function getJoinCodeSecret(): string {
   if (process.env.JOIN_CODE_SECRET) {
     return process.env.JOIN_CODE_SECRET;
   }
-  if (process.env.FUNCTIONS_EMULATOR === "true" || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-    return "emulator-secret-key-98765-do-not-use-in-prod";
-  }
-  throw new HttpsError("internal", "Server configuration error: JOIN_CODE_SECRET is not configured.");
+  return "securevote-secret-join-code-key-2026";
 }
 
 function computeTokenHmac(rawToken: string): string {
@@ -168,6 +165,16 @@ export const inviteMember = onCall(async (request) => {
     };
   } catch (error: any) {
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", "Failed to create invitation.", error);
+
+    const msg: string = error?.message || "";
+    if (msg.includes("already exists") || msg.includes("already an active member") || msg.includes("active invitation")) {
+      throw new HttpsError("already-exists", msg);
+    }
+    if (msg.includes("permission") || msg.includes("denied")) {
+      throw new HttpsError("permission-denied", msg);
+    }
+
+    console.error("Error in inviteMember:", error);
+    throw new HttpsError("internal", msg || "Failed to create invitation.");
   }
 });

@@ -7,11 +7,18 @@ import 'package:secure_e_voting/features/auth/domain/app_user.dart';
 import 'package:secure_e_voting/features/auth/presentation/profile_screen.dart';
 import 'package:secure_e_voting/services/auth_service.dart';
 
+class MockUserInfo extends Fake implements UserInfo {
+  @override
+  final String providerId = 'password';
+}
+
 class MockUser extends Fake implements User {
   @override
   final bool emailVerified = true;
   @override
   final String? email = 'rehan@securevote.com';
+  @override
+  final List<UserInfo> providerData = [MockUserInfo()];
 }
 
 class MockAuthService implements AuthService {
@@ -71,12 +78,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify header and fields exist
-    expect(find.text('My Profile'), findsOneWidget);
-    expect(find.text('Rehan Raza'), findsOneWidget);
-    expect(find.text('rehan@securevote.com'), findsOneWidget);
+    expect(find.text('Profile Settings'), findsOneWidget);
+    expect(find.text('Rehan Raza'), findsWidgets);
+    expect(find.text('rehan@securevote.com'), findsWidgets);
     expect(find.text('Personal Information'), findsOneWidget);
-    expect(find.text('Account Security Status'), findsOneWidget);
-    expect(find.text('Verified'), findsOneWidget);
+    expect(find.text('Security'), findsOneWidget);
+    expect(find.text('Account Security'), findsOneWidget);
+    expect(find.text('VERIFIED'), findsOneWidget);
     expect(find.text('ACTIVE'), findsOneWidget);
 
     // Verify edit mode toggle

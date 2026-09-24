@@ -36,6 +36,9 @@ class MockAuthService implements AuthService {
   User? get currentUser => null;
 
   @override
+  Stream<User?> get authStateChanges => Stream.value(null);
+
+  @override
   bool get isEmailVerified => false;
 }
 

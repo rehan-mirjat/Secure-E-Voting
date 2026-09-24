@@ -34,12 +34,14 @@ void main() {
 
     // Verify main components exist
     expect(find.text('Forgot Password?'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, 'Email Address'), findsOneWidget);
+    expect(find.text('EMAIL ADDRESS'), findsOneWidget);
     expect(find.text('Send Reset Link'), findsOneWidget);
-    expect(find.text('Back to Login'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
 
     // Test empty email validation
-    await tester.tap(find.text('Send Reset Link'));
+    final submitBtn = find.text('Send Reset Link');
+    await tester.ensureVisible(submitBtn);
+    await tester.tap(submitBtn);
     await tester.pump();
 
     expect(find.text('Email is required'), findsOneWidget);

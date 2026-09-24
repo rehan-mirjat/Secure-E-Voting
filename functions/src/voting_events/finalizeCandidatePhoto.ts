@@ -57,7 +57,7 @@ export const finalizeCandidatePhoto = onCall(async (request) => {
 
     // 2. Storage Bucket File Verification
     const storage = getStorage();
-    const bucket = storage.bucket("e-voteing-system.appspot.com");
+    const bucket = storage.bucket("vote-d1ae4.firebasestorage.app");
     const file = bucket.file(expectedPhotoPath);
 
     const [exists] = await file.exists();

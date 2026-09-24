@@ -51,58 +51,98 @@ class AdminEventDashboardScreen extends ConsumerWidget {
     return Stack(
       children: [
         Scaffold(
-          appBar: AppBar(
-            title: const Text('Event Management'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: 'Create Voting Event',
-                onPressed: () => context.go('/admin/events/new'),
-              )
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Event Management',
+                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.secondaryNavy,
+                                ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'Create and manage voting events for this organization',
+                            style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => context.go('/admin/events/new'),
+                      icon: const Icon(Icons.add),
+                      label: const Text('New Event'),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: StreamBuilder<List<VotingEvent>>(
+                  stream: eventsAsync,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                       return const Center(child: CircularProgressIndicator());
+                    }
+                    if (snapshot.hasError) {
+                       return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: AppTheme.error)));
+                    }
+                    
+                    final events = snapshot.data ?? [];
+
+                    if (events.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: const BoxDecoration(
+                                color: AppTheme.surfaceBlue,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.event_note, size: 64, color: AppTheme.primaryBlue),
+                            ),
+                            const SizedBox(height: 24),
+                            const Text('No voting events found.', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
+                            const SizedBox(height: 8),
+                            const Text('Get started by creating your first election or poll.', style: TextStyle(color: AppTheme.textSecondary)),
+                            const SizedBox(height: 32),
+                            ElevatedButton.icon(
+                              onPressed: () => context.go('/admin/events/new'),
+                              icon: const Icon(Icons.add),
+                              label: const Text('Create Voting Event'),
+                            )
+                          ],
+                        )
+                      );
+                    }
+
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 800),
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                          itemCount: events.length,
+                          itemBuilder: (ctx, i) {
+                            return EventCard(event: events[i]);
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
-          ),
-          body: StreamBuilder<List<VotingEvent>>(
-            stream: eventsAsync,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                 return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                 return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: AppTheme.error)));
-              }
-              
-              final events = snapshot.data ?? [];
-
-              if (events.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.event_note, size: 64, color: AppTheme.textSecondary),
-                      const SizedBox(height: 16),
-                      const Text('No voting events found.', style: TextStyle(fontSize: 18, color: AppTheme.textSecondary)),
-                      const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: () => context.go('/admin/events/new'),
-                        child: const Text('Create your first Voting Event'),
-                      )
-                    ],
-                  )
-                );
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: events.length,
-                itemBuilder: (ctx, i) {
-                  return EventCard(event: events[i]);
-                },
-              );
-            },
-          ),
-          floatingActionButton: FloatingActionButton(
-             onPressed: () => context.go('/admin/events/new'),
-             child: const Icon(Icons.add),
           ),
         ),
         if (lifecycleState.isLoading)

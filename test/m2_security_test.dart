@@ -28,9 +28,14 @@ void main() {
       expect(Validators.email('valid.user@securevote.com'), isNull);
     });
 
-    test('Validators enforce minimum password length >= 6', () {
-      expect(Validators.password('12345'), equals('Password must be at least 6 characters'));
-      expect(Validators.password('123456'), isNull);
+    test('Validators enforce strict Firebase password policy requirements', () {
+      expect(Validators.password('12345'), equals('Password must be at least 8 characters'));
+      expect(Validators.password('aA1!234'), equals('Password must be at least 8 characters'));
+      expect(Validators.password('abcdefghi!1'), equals('Password must contain at least one uppercase letter'));
+      expect(Validators.password('ABCDEFGHI!1'), equals('Password must contain at least one lowercase letter'));
+      expect(Validators.password('SecurePass!'), equals('Password must contain at least one number'));
+      expect(Validators.password('SecurePass123'), equals('Password must contain at least one special character'));
+      expect(Validators.password('SecureP@ss123'), isNull); // Valid
     });
   });
 }

@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 class FirebaseService {
@@ -16,6 +17,7 @@ class FirebaseService {
   final FirebaseAuth auth = FirebaseAuth.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
   final FirebaseFunctions functions = FirebaseFunctions.instance;
+  final FirebaseStorage storage = FirebaseStorage.instance;
   
   static bool _isEmulatorMode = false;
   static bool get isEmulatorMode => _isEmulatorMode;
@@ -43,6 +45,7 @@ class FirebaseService {
         await FirebaseAuth.instance.useAuthEmulator(host, 9099);
         FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
         FirebaseFunctions.instance.useFunctionsEmulator(host, 5001);
+        FirebaseStorage.instance.useStorageEmulator(host, 9199);
         
         debugPrint('✅ Connected to Firebase Emulators at $host');
       } catch (e) {
@@ -58,5 +61,17 @@ class FirebaseService {
     if (kIsWeb) return 'localhost';
     if (!kIsWeb && Platform.isAndroid) return '10.0.2.2'; // Android emulator localhost
     return 'localhost';
+  }
+
+  /// Sanitizes Firebase Storage emulator URLs across platforms (e.g. converting 127.0.0.1 to 10.0.2.2 on Android).
+  static String sanitizeStorageUrl(String? url) {
+    if (url == null || url.isEmpty) return '';
+    if (kIsWeb) {
+      return url.replaceAll('10.0.2.2', 'localhost').replaceAll('127.0.0.1', 'localhost');
+    } else if (!kIsWeb && Platform.isAndroid) {
+      return url.replaceAll('localhost', '10.0.2.2').replaceAll('127.0.0.1', '10.0.2.2');
+    } else {
+      return url.replaceAll('10.0.2.2', 'localhost');
+    }
   }
 }

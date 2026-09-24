@@ -14,21 +14,20 @@ service firebase.storage {
     }
 
     function isOrgMember(orgId) {
-      let membershipId = orgId + '_' + request.auth.uid;
-      return firestore.exists(/databases/(default)/documents/organizationMembers/$(membershipId)) &&
-             firestore.get(/databases/(default)/documents/organizationMembers/$(membershipId)).data.status == 'active';
+      return firestore.exists(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)) &&
+             firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.status == 'active';
     }
 
     function isOrgAdmin(orgId) {
-      let membershipId = orgId + '_' + request.auth.uid;
       return isOrgMember(orgId) && (
-        firestore.get(/databases/(default)/documents/organizationMembers/$(membershipId)).data.role == 'owner' ||
-        firestore.get(/databases/(default)/documents/organizationMembers/$(membershipId)).data.role == 'admin'
+        firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.role == 'owner' ||
+        firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.role == 'admin'
       );
     }
 
     // Exact filename photo.jpg for candidate photo uploads
     match /organizations/{orgId}/events/{eventId}/candidates/{candidateId}/photo.jpg {
+
       // Read: Active org members can read candidate photos for ACTIVE or CLOSED events.
       // Org Admins can read candidate photos for all events in their org.
       // Super Admins can read all photos.
@@ -37,19 +36,55 @@ service firebase.storage {
         isOrgAdmin(orgId) ||
         (
           isOrgMember(orgId) &&
+          firestore.exists(/databases/(default)/documents/votingEvents/$(eventId)) &&
           firestore.get(/databases/(default)/documents/votingEvents/$(eventId)).data.status in ["ACTIVE", "CLOSED"]
         )
       );
 
-      // Write: Active Org Owner or Admin in orgId ONLY when event status is DRAFT
-      // AND candidate belongs to orgId and eventId
-      allow write: if isSignedIn()
+      // Create/Update: Active Org Owner or Admin in orgId ONLY when event status is DRAFT
+      // AND candidate belongs to orgId and eventId, and event belongs to orgId.
+      allow create, update: if isSignedIn()
         && isOrgAdmin(orgId)
+        && firestore.exists(/databases/(default)/documents/votingEvents/$(eventId))
         && firestore.get(/databases/(default)/documents/votingEvents/$(eventId)).data.status == "DRAFT"
+        && firestore.get(/databases/(default)/documents/votingEvents/$(eventId)).data.organizationId == orgId
+        && firestore.exists(/databases/(default)/documents/candidates/$(candidateId))
         && firestore.get(/databases/(default)/documents/candidates/$(candidateId)).data.organizationId == orgId
         && firestore.get(/databases/(default)/documents/candidates/$(candidateId)).data.votingEventId == eventId
         && request.resource.contentType.matches('image/jpeg')
         && request.resource.size <= 5 * 1024 * 1024; // Max 5MB raw payload
+
+      // Delete: Same authorization as create/update but without request.resource checks
+      allow delete: if isSignedIn()
+        && isOrgAdmin(orgId)
+        && firestore.exists(/databases/(default)/documents/votingEvents/$(eventId))
+        && firestore.get(/databases/(default)/documents/votingEvents/$(eventId)).data.status == "DRAFT"
+        && firestore.get(/databases/(default)/documents/votingEvents/$(eventId)).data.organizationId == orgId
+        && firestore.exists(/databases/(default)/documents/candidates/$(candidateId))
+        && firestore.get(/databases/(default)/documents/candidates/$(candidateId)).data.organizationId == orgId
+        && firestore.get(/databases/(default)/documents/candidates/$(candidateId)).data.votingEventId == eventId;
+    }
+
+    // User Profile Avatar (Max 500KB = 512000 bytes)
+    match /users/{userId}/profile/avatar.jpg {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.auth.uid == userId
+        && request.resource.contentType == 'image/jpeg'
+        && request.resource.size <= 512000;
+      allow delete: if isSignedIn()
+        && request.auth.uid == userId;
+    }
+
+    // Organization Logo (Only Org Admins/Owners, Max 500KB = 512000 bytes)
+    match /organizations/{orgId}/logo/logo.jpg {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && isOrgAdmin(orgId)
+        && request.resource.contentType.matches('image/jpeg')
+        && request.resource.size < 512000;
+      allow delete: if isSignedIn()
+        && isOrgAdmin(orgId);
     }
 
     // Default deny for all other storage paths

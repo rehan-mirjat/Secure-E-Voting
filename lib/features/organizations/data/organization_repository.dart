@@ -1,4 +1,6 @@
+import 'dart:typed_data';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -316,6 +318,44 @@ class OrganizationRepository {
         .get();
 
     return doc.exists ? Organization.fromFirestore(doc) : null;
+  }
+
+  /// Uploads an organization logo to storage and updates the organization document via Cloud Function.
+  Future<String> uploadOrganizationLogo({
+    required String organizationId,
+    required List<int> imageBytes,
+  }) async {
+    final currentUser = _firebase.auth.currentUser;
+    if (currentUser == null) {
+      throw Exception('Unauthorized organization logo upload.');
+    }
+
+    // Enforce 500 KB (512,000 bytes) limit
+    if (imageBytes.length >= 512000) {
+      throw Exception('Organization logo exceeds 500 KB size limit (512,000 bytes).');
+    }
+
+    // Upload to organization-scoped path: organizations/{orgId}/logo/logo.jpg
+    final storageRef = _firebase.storage.ref().child('organizations/$organizationId/logo/logo.jpg');
+    final uploadTask = await storageRef.putData(
+      Uint8List.fromList(imageBytes),
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+
+    final downloadUrl = await uploadTask.ref.getDownloadURL();
+
+    // Update Firestore via server-authoritative updateOrganization Cloud Function
+    try {
+      final callable = _firebase.functions.httpsCallable('updateOrganization');
+      await callable.call({
+        'organizationId': organizationId,
+        'logoUrl': downloadUrl,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(mapFirebaseFunctionsError(e));
+    }
+
+    return downloadUrl;
   }
 }
 

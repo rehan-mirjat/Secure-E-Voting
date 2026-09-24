@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/voting_event.dart';
+
 import '../../data/voting_event_repository.dart';
+import '../../domain/voting_event.dart';
 
 class DraftEventState {
   final String title;
@@ -63,25 +64,21 @@ class DraftEventState {
 }
 
 class DraftEventNotifier extends StateNotifier<DraftEventState> {
+  DraftEventNotifier(this._repository, this.organizationId) : super(DraftEventState());
+
   final VotingEventRepository _repository;
   final String organizationId;
 
-  DraftEventNotifier(this._repository, this.organizationId) : super(DraftEventState());
-
-  void updateBasicInfo(String title, String description, VotingType type) {
-    state = state.copyWith(title: title, description: description, votingType: type);
+  void updateBasicInfo(String title, String desc, VotingType type) {
+    state = state.copyWith(title: title, description: desc, votingType: type);
   }
 
-  void updateSchedule(DateTime startAt, DateTime endAt) {
-    state = state.copyWith(startAt: startAt, endAt: endAt);
+  void updateSchedule(DateTime start, DateTime end) {
+    state = state.copyWith(startAt: start, endAt: end);
   }
 
-  void updateEligibility(EligibilityType type, List<String> deptIds, List<String> userIds) {
-    state = state.copyWith(
-      eligibilityType: type,
-      selectedDepartmentIds: type == EligibilityType.selectedDepartments ? deptIds : [],
-      selectedUserIds: type == EligibilityType.selectedMembers ? userIds : [],
-    );
+  void updateEligibility(EligibilityType type, List<String> depts, List<String> users) {
+    state = state.copyWith(eligibilityType: type, selectedDepartmentIds: depts, selectedUserIds: users);
   }
 
   void loadExistingDraft(VotingEvent event) {
@@ -125,8 +122,10 @@ class DraftEventNotifier extends StateNotifier<DraftEventState> {
         description: state.description,
         votingType: vTypeStr,
         eligibilityType: eTypeStr,
-        eligibilityDepartmentIds: state.selectedDepartmentIds.isNotEmpty ? state.selectedDepartmentIds : null,
-        eligibilityUserIds: state.selectedUserIds.isNotEmpty ? state.selectedUserIds : null,
+        // MUST BE EXPLICIT ARRAYS! Cloud functions require arrays for SELECTED states, 
+        // even if empty, but previously we sent null if empty.
+        eligibilityDepartmentIds: eTypeStr == 'SELECTED_DEPARTMENTS' ? state.selectedDepartmentIds : null,
+        eligibilityUserIds: eTypeStr == 'SELECTED_MEMBERS' ? state.selectedUserIds : null,
         startAt: state.startAt!,
         endAt: state.endAt!,
       );
