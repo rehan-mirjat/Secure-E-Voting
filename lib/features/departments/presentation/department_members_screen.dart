@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/empty_view.dart';
+import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
+import '../../../core/widgets/status_badge.dart';
 import '../../organizations/domain/organization_enums.dart';
 import '../../organizations/presentation/membership_directory_screen.dart';
 import '../../organizations/presentation/providers/organization_providers.dart';
@@ -20,195 +24,377 @@ class DepartmentMembersScreen extends ConsumerWidget {
     final orgContext = activeContextState.valueOrNull?.context;
 
     if (orgContext == null) {
-      return const Scaffold(body: Center(child: Text('No active organization context.')));
-    }
-
-    final isManager = orgContext.member.role == OrganizationRole.owner || orgContext.member.role == OrganizationRole.admin;
-
-    final departmentsAsync = ref.watch(activeOrganizationDepartmentsProvider);
-    final department = departmentsAsync.valueOrNull?.where((d) => d.id == departmentId).firstOrNull;
-
-    if (department == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Department Details')),
-        body: const Center(child: CircularProgressIndicator()),
+      return const Scaffold(
+        body: ErrorView(
+          title: 'No Active Organization',
+          message:
+              'Please select an organization context to view department members.',
+        ),
       );
     }
 
-    final membersAsync = ref.watch(organizationMembersDirectoryProvider(orgContext.organization.id));
+    final isManager = orgContext.member.role == OrganizationRole.owner ||
+        orgContext.member.role == OrganizationRole.admin;
+
+    final departmentsAsync = ref.watch(activeOrganizationDepartmentsProvider);
+    final department = departmentsAsync.valueOrNull
+        ?.where((d) => d.id == departmentId)
+        .firstOrNull;
+
+    if (department == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Department Members')),
+        body: const LoadingView(message: 'Loading department details...'),
+      );
+    }
+
+    final membersAsync = ref.watch(
+        organizationMembersDirectoryProvider(orgContext.organization.id));
 
     return Scaffold(
       appBar: AppBar(
         title: Text(department.name),
       ),
       body: membersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: AppTheme.error))),
+        loading: () =>
+            const LoadingView(message: 'Loading department roster...'),
+        error: (err, stack) =>
+            ErrorView(message: 'Failed to load roster: $err'),
         data: (allMembers) {
-          final deptMembers = allMembers.where((m) => m['departmentId'] == departmentId).toList();
+          final compact = MediaQuery.sizeOf(context).width < 500;
+          final deptMembers = allMembers.where((m) {
+            final deptIds =
+                List<String>.from(m['departmentIds'] as List? ?? []);
+            final singleDept = m['departmentId'] as String?;
+            return deptIds.contains(departmentId) || singleDept == departmentId;
+          }).toList();
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(department.name, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
-                    if (department.description.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Text(department.description, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
-                    ],
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Members (${deptMembers.length})', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
-                    if (isManager)
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => AddDepartmentMemberDialog(
-                              organizationId: orgContext.organization.id,
-                              departmentId: departmentId,
-                              allMembers: allMembers,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.person_add),
-                        label: const Text('Add Member'),
-                      ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: deptMembers.isEmpty
-                    ? const Center(
-                        child: Text('No members assigned to this department yet.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-                        itemCount: deptMembers.length,
-                        itemBuilder: (context, index) {
-                          final member = deptMembers[index];
-                          final name = member['displayName'] as String? ?? 'Unknown User';
-                          final email = member['email'] as String? ?? '';
-                          final role = (member['role'] as String? ?? 'member').toUpperCase();
-                          final status = member['status'] as String? ?? 'active';
-                          final targetUid = member['userId'] as String;
-
-                          final isInactive = status == 'inactive';
-
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                              side: const BorderSide(color: AppTheme.borderLight),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 24,
-                                    backgroundColor: isInactive ? Colors.grey.shade400 : AppTheme.primaryBlue,
-                                    child: Text(name.isNotEmpty ? name[0].toUpperCase() : 'U', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                  ),
-                                  const SizedBox(width: 20),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(compact ? 12 : 20,
+                          compact ? 12 : 20, compact ? 12 : 20, 12),
+                      child: Card(
+                        child: Padding(
+                          padding: EdgeInsets.all(compact ? 16 : 20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              compact
+                                  ? Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
-                                        Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isInactive ? Colors.grey : AppTheme.secondaryNavy, decoration: isInactive ? TextDecoration.lineThrough : null)),
-                                        const SizedBox(height: 4),
-                                        Text(email, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade100,
-                                          borderRadius: BorderRadius.circular(12),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(10),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.surfaceBlue,
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                              child: const Icon(
+                                                  Icons.domain_rounded,
+                                                  color: AppTheme.primaryBlue,
+                                                  size: 24),
+                                            ),
+                                            const SizedBox(width: 14),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(department.name,
+                                                      maxLines: 2,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontSize: 18,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                          color: AppTheme
+                                                              .secondaryNavy)),
+                                                  const SizedBox(height: 2),
+                                                  Text(
+                                                      '${deptMembers.length} Assigned Member${deptMembers.length == 1 ? '' : 's'}',
+                                                      style: const TextStyle(
+                                                          fontSize: 13,
+                                                          color: AppTheme
+                                                              .textSecondary,
+                                                          fontWeight:
+                                                              FontWeight.w500)),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        child: Text('Org Role: $role', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
-                                      ),
-                                      if (isInactive) ...[
-                                        const SizedBox(height: 6),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: AppTheme.error.withValues(alpha: 0.1),
-                                            borderRadius: BorderRadius.circular(12),
+                                        if (isManager) ...[
+                                          const SizedBox(height: 12),
+                                          Align(
+                                            alignment: Alignment.centerRight,
+                                            child: ElevatedButton.icon(
+                                              onPressed: () => showDialog(
+                                                context: context,
+                                                builder: (context) =>
+                                                    AddDepartmentMemberDialog(
+                                                  organizationId: orgContext
+                                                      .organization.id,
+                                                  departmentId: department.id,
+                                                  allMembers: allMembers,
+                                                ),
+                                              ),
+                                              icon: const Icon(
+                                                  Icons
+                                                      .person_add_alt_1_rounded,
+                                                  size: 16),
+                                              label: const Text('Assign'),
+                                            ),
                                           ),
-                                          child: const Text('INACTIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.error)),
-                                        ),
+                                        ],
                                       ],
-                                    ],
-                                  ),
-                                  if (isManager) ...[
-                                    const SizedBox(width: 24),
-                                    OutlinedButton.icon(
-                                      onPressed: () => _confirmRemoveMember(context, ref, orgContext.organization.id, targetUid, name),
-                                      style: OutlinedButton.styleFrom(foregroundColor: AppTheme.error, side: const BorderSide(color: AppTheme.error)),
-                                      icon: const Icon(Icons.person_remove, size: 18),
-                                      label: const Text('Remove'),
+                                    )
+                                  : Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.surfaceBlue,
+                                            borderRadius:
+                                                BorderRadius.circular(10),
+                                          ),
+                                          child: const Icon(
+                                              Icons.domain_rounded,
+                                              color: AppTheme.primaryBlue,
+                                              size: 24),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(department.name,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color: AppTheme
+                                                          .secondaryNavy)),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                  '${deptMembers.length} Assigned Member${deptMembers.length == 1 ? '' : 's'}',
+                                                  style: const TextStyle(
+                                                      fontSize: 13,
+                                                      color: AppTheme
+                                                          .textSecondary,
+                                                      fontWeight:
+                                                          FontWeight.w500)),
+                                            ],
+                                          ),
+                                        ),
+                                        if (isManager)
+                                          ElevatedButton.icon(
+                                            onPressed: () {
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) =>
+                                                    AddDepartmentMemberDialog(
+                                                  organizationId: orgContext
+                                                      .organization.id,
+                                                  departmentId: department.id,
+                                                  allMembers: allMembers,
+                                                ),
+                                              );
+                                            },
+                                            icon: const Icon(
+                                                Icons.person_add_alt_1_rounded,
+                                                size: 16),
+                                            label: const Text('Assign'),
+                                            style: ElevatedButton.styleFrom(
+                                              minimumSize: const Size(0, 38),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 14,
+                                                      vertical: 8),
+                                            ),
+                                          ),
+                                      ],
                                     ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                              if (department.description.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                Text(department.description,
+                                    style: const TextStyle(
+                                        fontSize: 13,
+                                        color: AppTheme.textSecondary,
+                                        height: 1.4)),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
+                    ),
+                  ),
+                  if (deptMembers.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: EmptyView(
+                        icon: Icons.group_off_outlined,
+                        title: 'No Members Assigned',
+                        message:
+                            'No organization members have been assigned to this department yet.',
+                        actionLabel: isManager ? 'Assign Member' : null,
+                        onAction: isManager
+                            ? () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) =>
+                                      AddDepartmentMemberDialog(
+                                    organizationId: orgContext.organization.id,
+                                    departmentId: department.id,
+                                    allMembers: allMembers,
+                                  ),
+                                );
+                              }
+                            : null,
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: compact ? 12 : 20, vertical: 8),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) {
+                            final member = deptMembers[index];
+                            final name =
+                                member['displayName'] as String? ?? 'Member';
+                            final email = member['email'] as String? ?? '';
+                            final photoUrl =
+                                member['photoUrl'] as String? ?? '';
+                            final role = member['role'] as String? ?? 'member';
+                            final userId = member['userId'] as String? ?? '';
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              child: ListTile(
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: compact ? 10 : 16, vertical: 8),
+                                leading: CircleAvatar(
+                                  backgroundColor: AppTheme.surfaceBlue,
+                                  backgroundImage: photoUrl.isNotEmpty
+                                      ? NetworkImage(photoUrl)
+                                      : null,
+                                  child: photoUrl.isEmpty
+                                      ? Text(
+                                          name.isNotEmpty
+                                              ? name[0].toUpperCase()
+                                              : 'M',
+                                          style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: AppTheme.primaryBlue),
+                                        )
+                                      : null,
+                                ),
+                                title: Text(name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.secondaryNavy)),
+                                subtitle: compact
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(email,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color:
+                                                      AppTheme.textSecondary)),
+                                          const SizedBox(height: 5),
+                                          StatusBadge.role(role),
+                                        ],
+                                      )
+                                    : Text(email,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppTheme.textSecondary)),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (!compact) StatusBadge.role(role),
+                                    if (isManager) ...[
+                                      if (!compact) const SizedBox(width: 8),
+                                      IconButton(
+                                        icon: const Icon(
+                                            Icons.remove_circle_outline_rounded,
+                                            color: AppTheme.error,
+                                            size: 20),
+                                        tooltip: 'Remove from Department',
+                                        onPressed: () async {
+                                          try {
+                                            await ref
+                                                .read(
+                                                    departmentRepositoryProvider)
+                                                .removeMemberFromDepartment(
+                                                  organizationId: orgContext
+                                                      .organization.id,
+                                                  targetUid: userId,
+                                                );
+                                            ref.invalidate(
+                                                organizationMembersDirectoryProvider(
+                                                    orgContext
+                                                        .organization.id));
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                    content: Text(
+                                                        'Removed $name from department.')),
+                                              );
+                                            }
+                                          } catch (e) {
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                SnackBar(
+                                                    content: Text('Failed: $e'),
+                                                    backgroundColor:
+                                                        AppTheme.error),
+                                              );
+                                            }
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                          childCount: deptMembers.length,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
     );
-  }
-
-  void _confirmRemoveMember(BuildContext context, WidgetRef ref, String orgId, String targetUid, String name) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove member from department?'),
-        content: Text('Are you sure you want to remove $name from this department?\n\nThis only removes their department assignment. They will remain a member of the organization.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      try {
-        await ref.read(departmentRepositoryProvider).removeMemberFromDepartment(organizationId: orgId, targetUid: targetUid);
-        ref.invalidate(organizationMembersDirectoryProvider(orgId));
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Member removed from department.'), backgroundColor: AppTheme.success));
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to remove member: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.error));
-        }
-      }
-    }
   }
 }

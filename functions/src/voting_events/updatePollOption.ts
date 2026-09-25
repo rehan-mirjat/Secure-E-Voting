@@ -57,7 +57,8 @@ export const updatePollOption = onCall(async (request) => {
       const callerRef = db.collection("organizationMembers").doc(`${organizationId}_${uid}`);
       const callerSnap = await transaction.get(callerRef);
 
-      if (!callerSnap.exists || callerSnap.data()?.status !== "active") {
+      if (!callerSnap.exists || callerSnap.data()?.status !== "active" ||
+          callerSnap.data()?.organizationId !== organizationId || callerSnap.data()?.userId !== uid) {
         throw new HttpsError("permission-denied", "You are not an active member of this organization.");
       }
 

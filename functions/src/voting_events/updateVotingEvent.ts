@@ -11,7 +11,7 @@ export const updateVotingEvent = onCall(async (request) => {
 
   // Strict Schema Whitelisting: Reject any unapproved keys
   const allowedKeys = [
-    "eventId", "title", "description",
+    "eventId", "title", "description", "votingType", "privacyMode",
     "eligibilityType", "eligibilityDepartmentIds", "eligibilityUserIds",
     "startAt", "endAt"
   ];
@@ -22,7 +22,7 @@ export const updateVotingEvent = onCall(async (request) => {
   }
 
   const {
-    eventId, title, description,
+    eventId, title, description, votingType, privacyMode,
     eligibilityType, eligibilityDepartmentIds, eligibilityUserIds,
     startAt, endAt
   } = data;
@@ -45,6 +45,11 @@ export const updateVotingEvent = onCall(async (request) => {
       const organizationId = eventData.organizationId;
       const currentStatus = eventData.status;
 
+      const organizationSnap = await transaction.get(db.collection("organizations").doc(organizationId));
+      if (!organizationSnap.exists || !["verified", "active"].includes(organizationSnap.data()?.status)) {
+        throw new HttpsError("failed-precondition", "The organization must be verified to manage voting events.");
+      }
+
       // 1. Strict Immutability Guard: Permitted ONLY when status == "DRAFT"
       if (currentStatus !== "DRAFT") {
         throw new HttpsError(
@@ -57,7 +62,8 @@ export const updateVotingEvent = onCall(async (request) => {
       const callerMemberRef = db.collection("organizationMembers").doc(`${organizationId}_${uid}`);
       const callerMemberSnap = await transaction.get(callerMemberRef);
 
-      if (!callerMemberSnap.exists || callerMemberSnap.data()?.status !== "active") {
+      if (!callerMemberSnap.exists || callerMemberSnap.data()?.status !== "active" ||
+          callerMemberSnap.data()?.organizationId !== organizationId || callerMemberSnap.data()?.userId !== uid) {
         throw new HttpsError("permission-denied", "You are not an active member of this organization.");
       }
 
@@ -83,6 +89,20 @@ export const updateVotingEvent = onCall(async (request) => {
           throw new HttpsError("invalid-argument", "Description cannot exceed 1000 characters.");
         }
         updates.description = cleanDesc;
+      }
+
+      if (votingType !== undefined) {
+        if (!["CANDIDATE_ELECTION", "SINGLE_CHOICE_POLL", "YES_NO_POLL"].includes(votingType)) {
+          throw new HttpsError("invalid-argument", "Invalid votingType.");
+        }
+        updates.votingType = votingType;
+      }
+
+      if (privacyMode !== undefined) {
+        if (privacyMode !== "ANONYMOUS" && privacyMode !== "IDENTIFIABLE") {
+          throw new HttpsError("invalid-argument", "Invalid privacyMode.");
+        }
+        updates.privacyMode = privacyMode;
       }
 
       const trustedNow = Timestamp.now().toMillis();

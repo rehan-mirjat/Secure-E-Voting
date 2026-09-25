@@ -7,6 +7,7 @@ class DraftEventState {
   final String title;
   final String description;
   final VotingType votingType;
+  final PrivacyMode privacyMode;
   final DateTime? startAt;
   final DateTime? endAt;
   final EligibilityType eligibilityType;
@@ -21,6 +22,7 @@ class DraftEventState {
     this.title = '',
     this.description = '',
     this.votingType = VotingType.candidateElection,
+    this.privacyMode = PrivacyMode.anonymous,
     this.startAt,
     this.endAt,
     this.eligibilityType = EligibilityType.allMembers,
@@ -36,6 +38,7 @@ class DraftEventState {
     String? title,
     String? description,
     VotingType? votingType,
+    PrivacyMode? privacyMode,
     DateTime? startAt,
     DateTime? endAt,
     EligibilityType? eligibilityType,
@@ -50,6 +53,7 @@ class DraftEventState {
       title: title ?? this.title,
       description: description ?? this.description,
       votingType: votingType ?? this.votingType,
+      privacyMode: privacyMode ?? this.privacyMode,
       startAt: startAt ?? this.startAt,
       endAt: endAt ?? this.endAt,
       eligibilityType: eligibilityType ?? this.eligibilityType,
@@ -69,8 +73,8 @@ class DraftEventNotifier extends StateNotifier<DraftEventState> {
   final VotingEventRepository _repository;
   final String organizationId;
 
-  void updateBasicInfo(String title, String desc, VotingType type) {
-    state = state.copyWith(title: title, description: desc, votingType: type);
+  void updateBasicInfo(String title, String desc, VotingType type, PrivacyMode privacyMode) {
+    state = state.copyWith(title: title, description: desc, votingType: type, privacyMode: privacyMode);
   }
 
   void updateSchedule(DateTime start, DateTime end) {
@@ -86,6 +90,7 @@ class DraftEventNotifier extends StateNotifier<DraftEventState> {
       title: event.title,
       description: event.description,
       votingType: event.votingType,
+      privacyMode: event.privacyMode,
       startAt: event.startAt,
       endAt: event.endAt,
       eligibilityType: event.eligibilityType,
@@ -115,12 +120,31 @@ class DraftEventNotifier extends StateNotifier<DraftEventState> {
           : state.eligibilityType == EligibilityType.selectedDepartments
               ? 'SELECTED_DEPARTMENTS'
               : 'SELECTED_MEMBERS';
+      final String privacyModeStr = state.privacyMode == PrivacyMode.identifiable ? 'IDENTIFIABLE' : 'ANONYMOUS';
+
+      if (state.serverEventId != null) {
+        await _repository.updateVotingEvent(
+          eventId: state.serverEventId!,
+          votingType: vTypeStr,
+          privacyMode: privacyModeStr,
+          title: state.title,
+          description: state.description,
+          startAt: state.startAt,
+          endAt: state.endAt,
+          eligibilityType: eTypeStr,
+          eligibilityDepartmentIds: eTypeStr == 'SELECTED_DEPARTMENTS' ? state.selectedDepartmentIds : const [],
+          eligibilityUserIds: eTypeStr == 'SELECTED_MEMBERS' ? state.selectedUserIds : const [],
+        );
+        state = state.copyWith(isLoading: false);
+        return true;
+      }
 
       final eventId = await _repository.createVotingEvent(
         organizationId: organizationId,
         title: state.title,
         description: state.description,
         votingType: vTypeStr,
+        privacyMode: privacyModeStr,
         eligibilityType: eTypeStr,
         // MUST BE EXPLICIT ARRAYS! Cloud functions require arrays for SELECTED states, 
         // even if empty, but previously we sent null if empty.

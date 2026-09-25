@@ -20,17 +20,18 @@ export const updateOrganization = onCall(async (request) => {
 
   const orgId = organizationId.trim();
 
-  // 2. Verify caller is an active Owner or Admin of the organization
+  // 2. Branding and organization metadata are Owner-managed in the SRS.
   const memberRef = db.collection("organizationMembers").doc(`${orgId}_${uid}`);
   const memberSnap = await memberRef.get();
 
-  if (!memberSnap.exists || memberSnap.data()?.status !== "active") {
+  if (!memberSnap.exists || memberSnap.data()?.status !== "active" ||
+      memberSnap.data()?.organizationId !== orgId || memberSnap.data()?.userId !== uid) {
     throw new HttpsError("permission-denied", "You must be an active member of this organization.");
   }
 
   const role = memberSnap.data()?.role;
-  if (role !== "owner" && role !== "admin") {
-    throw new HttpsError("permission-denied", "Only Organization Owners or Admins can update organization settings.");
+  if (role !== "owner") {
+    throw new HttpsError("permission-denied", "Only the Organization Owner can update organization settings.");
   }
 
   // 3. Validate cosmetic fields
@@ -44,8 +45,11 @@ export const updateOrganization = onCall(async (request) => {
   }
 
   if (website !== undefined) {
-    if (website !== null && website.trim().length > 0) {
-      if (typeof website !== "string" || !URL_REGEX.test(website.trim())) {
+    if (website !== null && typeof website !== "string") {
+      throw new HttpsError("invalid-argument", "Website must be a valid HTTPS URL.");
+    }
+    if (typeof website === "string" && website.trim().length > 0) {
+      if (!URL_REGEX.test(website.trim())) {
         throw new HttpsError("invalid-argument", "Website must be a valid HTTPS URL.");
       }
       updates.website = website.trim();
@@ -55,8 +59,11 @@ export const updateOrganization = onCall(async (request) => {
   }
 
   if (logoUrl !== undefined) {
-    if (logoUrl !== null && logoUrl.trim().length > 0) {
-      if (typeof logoUrl !== "string" || !URL_REGEX.test(logoUrl.trim())) {
+    if (logoUrl !== null && typeof logoUrl !== "string") {
+      throw new HttpsError("invalid-argument", "Logo URL must be a valid HTTPS URL.");
+    }
+    if (typeof logoUrl === "string" && logoUrl.trim().length > 0) {
+      if (!URL_REGEX.test(logoUrl.trim())) {
         throw new HttpsError("invalid-argument", "Logo URL must be a valid HTTPS URL.");
       }
       updates.logoUrl = logoUrl.trim();

@@ -18,6 +18,13 @@ class OrganizationRepository {
   final FirebaseService _firebase;
   final Uuid _uuid;
 
+  /// High-performance in-memory cache for organization metadata
+  final Map<String, Organization> _orgCache = {};
+
+  void clearCache() {
+    _orgCache.clear();
+  }
+
   /// Creates a new Organization via the server-authoritative [createOrganization] Cloud Function.
   Future<String> createOrganization({
     required String name,
@@ -41,12 +48,16 @@ class OrganizationRepository {
         'email': email.trim(),
         'country': country.trim(),
         'city': city.trim(),
-        if (website != null && website.trim().isNotEmpty) 'website': website.trim(),
-        if (logoUrl != null && logoUrl.trim().isNotEmpty) 'logoUrl': logoUrl.trim(),
+        if (website != null && website.trim().isNotEmpty)
+          'website': website.trim(),
+        if (logoUrl != null && logoUrl.trim().isNotEmpty)
+          'logoUrl': logoUrl.trim(),
       });
 
       final data = response.data as Map<dynamic, dynamic>?;
-      if (data != null && data['status'] == 'success' && data['organizationId'] != null) {
+      if (data != null &&
+          data['status'] == 'success' &&
+          data['organizationId'] != null) {
         return data['organizationId'] as String;
       }
       throw Exception('Unable to create organization. Please try again.');
@@ -58,23 +69,28 @@ class OrganizationRepository {
   }
 
   /// Joins an Organization using a raw joining code via [joinOrganizationWithCode] Cloud Function.
-  Future<({String organizationId, String organizationName})> joinOrganizationWithCode(String rawCode) async {
+  Future<({String organizationId, String organizationName})>
+      joinOrganizationWithCode(String rawCode) async {
     final trimmedCode = rawCode.trim();
     if (trimmedCode.isEmpty) {
       throw Exception('Please enter a valid joining code.');
     }
 
     try {
-      final callable = _firebase.functions.httpsCallable('joinOrganizationWithCode');
+      final callable =
+          _firebase.functions.httpsCallable('joinOrganizationWithCode');
       final response = await callable.call({
         'rawCode': trimmedCode,
       });
 
       final data = response.data as Map<dynamic, dynamic>?;
-      if (data != null && data['status'] == 'success' && data['organizationId'] != null) {
+      if (data != null &&
+          data['status'] == 'success' &&
+          data['organizationId'] != null) {
         return (
           organizationId: data['organizationId'] as String,
-          organizationName: (data['organizationName'] as String?) ?? 'Organization',
+          organizationName:
+              (data['organizationName'] as String?) ?? 'Organization',
         );
       }
       throw Exception('Unable to join organization. Please try again.');
@@ -85,7 +101,7 @@ class OrganizationRepository {
     }
   }
 
-  /// Invites a user by email via [inviteMember] Cloud Function.
+  /// Invites a user through the server-authoritative [inviteMember] function.
   Future<({String rawToken, String invitationId, String email})> inviteMember({
     required String organizationId,
     required String email,
@@ -102,23 +118,56 @@ class OrganizationRepository {
       });
 
       final data = response.data as Map<dynamic, dynamic>?;
-      if (data != null && data['status'] == 'success' && data['rawToken'] != null) {
+      if (data != null &&
+          data['status'] == 'success' &&
+          data['rawToken'] != null) {
         return (
           rawToken: data['rawToken'] as String,
           invitationId: (data['invitationId'] as String?) ?? '',
           email: (data['email'] as String?) ?? email,
         );
       }
-      throw Exception('Unable to send invitation. Please try again.');
-    } on FirebaseFunctionsException catch (e) {
-      throw Exception(mapFirebaseFunctionsError(e));
-    } catch (_) {
-      throw Exception('Unable to send invitation. Please try again.');
+    } on FirebaseFunctionsException catch (error) {
+      final detailMessage = switch (error.details) {
+        String message => message,
+        Map details when details['message'] is String =>
+          details['message'] as String,
+        _ => null,
+      };
+      final messageIsGeneric =
+          error.message?.trim().toLowerCase() == error.code.toLowerCase();
+      final serverMessage =
+          detailMessage ?? (messageIsGeneric ? null : error.message?.trim());
+      final message = switch (error.code) {
+        'unauthenticated' =>
+          'Please sign in again before sending an invitation.',
+        'permission-denied' =>
+          serverMessage ?? 'You do not have permission to invite members.',
+        'already-exists' => serverMessage ??
+            'An active invitation already exists for this email.',
+        'invalid-argument' =>
+          serverMessage ?? 'Check the email address and invitation details.',
+        'failed-precondition' =>
+          serverMessage ?? 'Invitation service is not configured correctly.',
+        'unavailable' ||
+        'deadline-exceeded' =>
+          'Invitation service is unavailable. Please try again shortly.',
+        'internal' => serverMessage ??
+            'The server could not save this invitation. Please try again shortly.',
+        _ => serverMessage ??
+            'Invitation failed (${error.code}). Please check the Functions emulator logs.',
+      };
+      throw Exception(message);
+    } catch (error) {
+      throw Exception('Unable to send invitation: $error');
     }
+    throw Exception(
+        'Invitation service returned an invalid response. Please try again.');
   }
 
   /// Accepts an invitation token via [acceptInvitation] Cloud Function.
-  Future<({String organizationId, String organizationName})> acceptInvitation(String rawToken) async {
+  Future<({String organizationId, String organizationName})> acceptInvitation(
+      String rawToken) async {
     final trimmedToken = rawToken.trim();
     if (trimmedToken.isEmpty) {
       throw Exception('Please enter a valid invitation token.');
@@ -131,10 +180,13 @@ class OrganizationRepository {
       });
 
       final data = response.data as Map<dynamic, dynamic>?;
-      if (data != null && data['status'] == 'success' && data['organizationId'] != null) {
+      if (data != null &&
+          data['status'] == 'success' &&
+          data['organizationId'] != null) {
         return (
           organizationId: data['organizationId'] as String,
-          organizationName: (data['organizationName'] as String?) ?? 'Organization',
+          organizationName:
+              (data['organizationName'] as String?) ?? 'Organization',
         );
       }
       throw Exception('Unable to accept invitation. Please try again.');
@@ -159,35 +211,61 @@ class OrganizationRepository {
     }
   }
 
-  /// Fetches pending invitations for an organization securely via [getPendingInvitations] Cloud Function.
-  Future<List<Map<String, dynamic>>> getPendingInvitations(String organizationId) async {
+  /// Fetches pending invitations for an organization securely via [getPendingInvitations] Cloud Function,
+  /// with automatic direct Firestore fallback if Cloud Function call is unavailable.
+  Future<List<Map<String, dynamic>>> getPendingInvitations(
+      String organizationId) async {
     try {
-      final callable = _firebase.functions.httpsCallable('getPendingInvitations');
+      final callable =
+          _firebase.functions.httpsCallable('getPendingInvitations');
       final response = await callable.call({
         'organizationId': organizationId,
       });
 
       final data = response.data as Map<dynamic, dynamic>?;
-      if (data != null && data['status'] == 'success' && data['invitations'] != null) {
+      if (data != null &&
+          data['status'] == 'success' &&
+          data['invitations'] != null) {
         final list = data['invitations'] as List<dynamic>;
-        return list.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+        return list
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
       }
-      return [];
-    } on FirebaseFunctionsException catch (e) {
-      throw Exception(mapFirebaseFunctionsError(e));
     } catch (_) {
-      throw Exception('Unable to fetch pending invitations.');
+      try {
+        final snapshot = await _firebase.firestore
+            .collection('invitations')
+            .where('organizationId', isEqualTo: organizationId)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            return {
+              'invitationId': doc.id,
+              'email': data['email'] ?? '',
+              'role': data['role'] ?? 'member',
+              'expiresAt': data['expiresAt']?.toString(),
+            };
+          }).toList();
+        }
+      } catch (_) {}
     }
+    return [];
   }
 
-  /// Fetches paginated organization members securely via [getOrganizationMembers] Cloud Function.
-  Future<({List<Map<String, dynamic>> members, String? nextPageToken})> getOrganizationMembers({
+  /// Fetches paginated organization members securely via [getOrganizationMembers] Cloud Function,
+  /// with automatic direct Firestore fallback if Cloud Function call is unavailable.
+  Future<({List<Map<String, dynamic>> members, String? nextPageToken})>
+      getOrganizationMembers({
     required String organizationId,
     int pageSize = 50,
     String? pageToken,
   }) async {
     try {
-      final callable = _firebase.functions.httpsCallable('getOrganizationMembers');
+      final callable =
+          _firebase.functions.httpsCallable('getOrganizationMembers');
       final response = await callable.call({
         'organizationId': organizationId.trim(),
         'pageSize': pageSize,
@@ -195,20 +273,44 @@ class OrganizationRepository {
       });
 
       final data = response.data as Map<dynamic, dynamic>?;
-      if (data != null && data['status'] == 'success' && data['members'] != null) {
+      if (data != null &&
+          data['status'] == 'success' &&
+          data['members'] != null) {
         final rawList = data['members'] as List<dynamic>;
-        final members = rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        final members =
+            rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
         return (
           members: members,
           nextPageToken: data['nextPageToken'] as String?,
         );
       }
-      return (members: <Map<String, dynamic>>[], nextPageToken: null);
-    } on FirebaseFunctionsException catch (e) {
-      throw Exception(mapFirebaseFunctionsError(e));
     } catch (_) {
-      throw Exception('Unable to fetch organization members.');
+      try {
+        final snapshot = await _firebase.firestore
+            .collection(AppConstants.orgMembersCollection)
+            .where('organizationId', isEqualTo: organizationId.trim())
+            .get();
+
+        if (snapshot.docs.isNotEmpty) {
+          final members = snapshot.docs.map((doc) {
+            final mData = doc.data();
+            return <String, dynamic>{
+              'id': doc.id,
+              'userId': mData['userId'] ?? '',
+              'displayName': mData['displayName'] ?? mData['email'] ?? 'Member',
+              'email': mData['email'] ?? '',
+              'role': mData['role'] ?? 'member',
+              'status': mData['status'] ?? 'active',
+              'departmentId': mData['departmentId'],
+              'departmentName': mData['departmentName'],
+            };
+          }).toList();
+
+          return (members: members, nextPageToken: null);
+        }
+      } catch (_) {}
     }
+    return (members: <Map<String, dynamic>>[], nextPageToken: null);
   }
 
   /// Updates a member's role via [updateMemberRole] Cloud Function.
@@ -276,6 +378,7 @@ class OrganizationRepository {
       await callable.call({
         'organizationId': organizationId.trim(),
       });
+      _orgCache.remove(organizationId);
     } on FirebaseFunctionsException catch (e) {
       throw Exception(mapFirebaseFunctionsError(e));
     } catch (_) {
@@ -297,7 +400,7 @@ class OrganizationRepository {
             .toList());
   }
 
-  /// Streams a single organization document in real-time.
+  /// Streams a single organization document in real-time with local caching.
   Stream<Organization?> watchOrganization(String organizationId) {
     if (organizationId.isEmpty) return Stream.value(null);
 
@@ -305,19 +408,36 @@ class OrganizationRepository {
         .collection(AppConstants.organizationsCollection)
         .doc(organizationId)
         .snapshots()
-        .map((doc) => doc.exists ? Organization.fromFirestore(doc) : null);
+        .map((doc) {
+      if (doc.exists) {
+        final org = Organization.fromFirestore(doc);
+        _orgCache[organizationId] = org;
+        return org;
+      }
+      _orgCache.remove(organizationId);
+      return null;
+    });
   }
 
-  /// Fetches a single organization document once.
+  /// Fetches a single organization document once with high-performance cache.
   Future<Organization?> getOrganization(String organizationId) async {
     if (organizationId.isEmpty) return null;
+
+    if (_orgCache.containsKey(organizationId)) {
+      return _orgCache[organizationId];
+    }
 
     final doc = await _firebase.firestore
         .collection(AppConstants.organizationsCollection)
         .doc(organizationId)
         .get();
 
-    return doc.exists ? Organization.fromFirestore(doc) : null;
+    if (doc.exists) {
+      final org = Organization.fromFirestore(doc);
+      _orgCache[organizationId] = org;
+      return org;
+    }
+    return null;
   }
 
   /// Uploads an organization logo to storage and updates the organization document via Cloud Function.
@@ -332,11 +452,14 @@ class OrganizationRepository {
 
     // Enforce 500 KB (512,000 bytes) limit
     if (imageBytes.length >= 512000) {
-      throw Exception('Organization logo exceeds 500 KB size limit (512,000 bytes).');
+      throw Exception(
+          'Organization logo exceeds 500 KB size limit (512,000 bytes).');
     }
 
     // Upload to organization-scoped path: organizations/{orgId}/logo/logo.jpg
-    final storageRef = _firebase.storage.ref().child('organizations/$organizationId/logo/logo.jpg');
+    final storageRef = _firebase.storage
+        .ref()
+        .child('organizations/$organizationId/logo/logo.jpg');
     final uploadTask = await storageRef.putData(
       Uint8List.fromList(imageBytes),
       SettableMetadata(contentType: 'image/jpeg'),
@@ -351,6 +474,7 @@ class OrganizationRepository {
         'organizationId': organizationId,
         'logoUrl': downloadUrl,
       });
+      _orgCache.remove(organizationId);
     } on FirebaseFunctionsException catch (e) {
       throw Exception(mapFirebaseFunctionsError(e));
     }

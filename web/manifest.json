@@ -1,11 +1,11 @@
 {
-    "name": "Secure E-Voting System",
-    "short_name": "E-Voting",
+    "name": "SecureVote",
+    "short_name": "SecureVote",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0F4C81",
-    "theme_color": "#0F4C81",
-    "description": "Secure e-voting system for academic elections using Flutter and Firebase.",
+    "background_color": "#0F172A",
+    "theme_color": "#2563EB",
+    "description": "Enterprise Multi-Tenant E-Voting & Polling SaaS Platform",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

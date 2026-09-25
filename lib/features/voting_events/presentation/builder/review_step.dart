@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../data/voting_event_repository.dart';
 import '../providers/draft_event_provider.dart';
 import '../../data/candidate_repository.dart';
@@ -37,10 +38,12 @@ class _ReviewStepState extends ConsumerState<ReviewStep> {
     try {
       await ref.read(votingEventRepositoryProvider).publishVotingEvent(eventId);
       if (mounted) {
-         ref.read(draftEventProvider(widget.orgId).notifier).reset();
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Voting Event Published Successfully!', style: TextStyle(color: AppTheme.success))));
-         // Navigate back to management dashboard (route to be defined)
-         context.go('/org/${widget.orgId}');
+        ref.read(draftEventProvider(widget.orgId).notifier).reset();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Voting Event Published Successfully!',
+                style: TextStyle(color: AppTheme.success))));
+        // Navigate back to management dashboard (route to be defined)
+        context.go('/org/${widget.orgId}');
       }
     } catch (e) {
       if (mounted) {
@@ -64,72 +67,96 @@ class _ReviewStepState extends ConsumerState<ReviewStep> {
 
     Stream<int> countStream;
     if (isCand) {
-       countStream = ref.watch(candidateRepositoryProvider).watchEventCandidates(eventId).map((v) => v.length);
+      countStream = ref
+          .watch(candidateRepositoryProvider)
+          .watchEventCandidates(eventId)
+          .map((v) => v.length);
     } else if (isPoll) {
-       countStream = ref.watch(pollOptionRepositoryProvider).watchEventPollOptions(eventId).map((v) => v.length);
+      countStream = ref
+          .watch(pollOptionRepositoryProvider)
+          .watchEventPollOptions(eventId)
+          .map((v) => v.length);
     } else {
-       countStream = Stream.value(2); // Safe for YesNo
+      countStream = Stream.value(2); // Safe for YesNo
     }
 
     return StreamBuilder<int>(
-      stream: countStream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-           return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-           return Text('Error loading choices: ${snapshot.error}');
-        }
-        
-        final count = snapshot.data ?? 0;
-        final isReady = count >= 2 || draft.votingType == VotingType.yesNoPoll;
+        stream: countStream,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Text('Error loading choices: ${snapshot.error}');
+          }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Review & Publish', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            
-            _summaryRow('Title', draft.title),
-            _summaryRow('Start At', draft.startAt != null ? DateFormat('MMM d, yyyy h:mm a').format(draft.startAt!) : ''),
-            _summaryRow('End At', draft.endAt != null ? DateFormat('MMM d, yyyy h:mm a').format(draft.endAt!) : ''),
-            _summaryRow('Choices', '$count items configured'),
+          final count = snapshot.data ?? 0;
+          final isReady =
+              count >= 2 || draft.votingType == VotingType.yesNoPoll;
 
-            if (!isReady) ...[
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Review & Publish',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
-                child: const Text('Warning: A minimum of 2 choices must be configured before publishing.', style: TextStyle(color: Colors.orange)),
-              ),
-            ],
-
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: AppTheme.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
-                child: Text('Publish Error: $_error', style: const TextStyle(color: AppTheme.error)),
-              ),
-            ],
-
-            const SizedBox(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                TextButton(onPressed: _isPublishing ? null : widget.onBack, child: const Text('Back')),
-                ElevatedButton(
-                  onPressed: _isPublishing || !isReady ? null : _publish,
-                  child: _isPublishing 
-                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Text('Publish Event'),
+              _summaryRow('Title', draft.title),
+              _summaryRow(
+                  'Start At',
+                  draft.startAt != null
+                      ? DateFormat('MMM d, yyyy h:mm a').format(draft.startAt!)
+                      : ''),
+              _summaryRow(
+                  'End At',
+                  draft.endAt != null
+                      ? DateFormat('MMM d, yyyy h:mm a').format(draft.endAt!)
+                      : ''),
+              _summaryRow('Choices', '$count items configured'),
+              if (!isReady) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: Colors.orange.shade50,
+                      borderRadius: BorderRadius.circular(8)),
+                  child: const Text(
+                      'Warning: A minimum of 2 choices must be configured before publishing.',
+                      style: TextStyle(color: Colors.orange)),
                 ),
               ],
-            ),
-          ],
-        );
-      }
-    );
+              if (_error != null) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                      color: AppTheme.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8)),
+                  child: Text('Publish Error: $_error',
+                      style: const TextStyle(color: AppTheme.error)),
+                ),
+              ],
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                      onPressed: _isPublishing ? null : widget.onBack,
+                      child: const Text('Back')),
+                  ElevatedButton(
+                    onPressed: _isPublishing || !isReady ? null : _publish,
+                    child: _isPublishing
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : const Text('Publish Event'),
+                  ),
+                ],
+              ),
+            ],
+          );
+        });
   }
 
   Widget _summaryRow(String label, String value) {
@@ -138,8 +165,14 @@ class _ReviewStepState extends ConsumerState<ReviewStep> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 100, child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy))),
-          Expanded(child: Text(value)),
+          SizedBox(
+            width: ResponsiveLayout.isCompact(context) ? 76 : 100,
+            child: Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.secondaryNavy)),
+          ),
+          Expanded(child: Text(value, softWrap: true)),
         ],
       ),
     );

@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/empty_view.dart';
+import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../../organizations/domain/organization_enums.dart';
 import '../../organizations/presentation/providers/organization_providers.dart';
 import '../domain/department.dart';
@@ -61,7 +64,10 @@ class DepartmentsScreen extends ConsumerWidget {
     final orgContext = activeContextState.valueOrNull?.context;
     if (orgContext == null) {
       return const Scaffold(
-        body: Center(child: Text('No active organization context.')),
+        body: ErrorView(
+          title: 'No Active Organization',
+          message: 'Please select an organization context to view departments.',
+        ),
       );
     }
 
@@ -73,108 +79,135 @@ class DepartmentsScreen extends ConsumerWidget {
       ),
       floatingActionButton: isManager
           ? FloatingActionButton.extended(
+              key: const ValueKey('departments_screen_fab'),
               onPressed: () {
                 showDialog(
                   context: context,
                   builder: (context) => CreateEditDepartmentDialog(organizationId: orgContext.organization.id),
                 );
               },
-              icon: const Icon(Icons.add),
+              backgroundColor: AppTheme.primaryBlue,
+              foregroundColor: Colors.white,
+              icon: const Icon(Icons.add_rounded),
               label: const Text('New Department'),
             )
           : null,
       body: departmentsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: ${err.toString()}', style: const TextStyle(color: AppTheme.error))),
+        loading: () => const LoadingView(message: 'Loading departments...'),
+        error: (err, stack) => ErrorView(
+          message: 'Failed to load departments: $err',
+          onRetry: () => ref.invalidate(activeOrganizationDepartmentsProvider),
+        ),
         data: (departments) {
           if (departments.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.domain_disabled_outlined, size: 64, color: AppTheme.textSecondary),
-                  const SizedBox(height: 16),
-                  const Text('No Departments Found', style: TextStyle(fontSize: 20, color: AppTheme.secondaryNavy)),
-                  const SizedBox(height: 8),
-                  if (isManager)
-                    const Text('Create departments to organize members and restrict voting eligibility.', style: TextStyle(color: AppTheme.textSecondary))
-                  else
-                    const Text('This organization has no departments.', style: TextStyle(color: AppTheme.textSecondary)),
-                ],
-              ),
+            return EmptyView(
+              icon: Icons.domain_disabled_outlined,
+              title: 'No Departments Found',
+              message: isManager
+                  ? 'Create departments to organize members and restrict voting eligibility.'
+                  : 'This organization has no departments.',
+              actionLabel: isManager ? 'Create Department' : null,
+              onAction: isManager
+                  ? () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => CreateEditDepartmentDialog(organizationId: orgContext.organization.id),
+                      );
+                    }
+                  : null,
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: departments.length,
-            itemBuilder: (context, index) {
-              final dept = departments[index];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  side: const BorderSide(color: AppTheme.borderLight),
-                ),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  hoverColor: AppTheme.surfaceBlue.withValues(alpha: 0.3),
-                  onTap: () => context.go('/orgs/departments/${dept.id}'),
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(Icons.domain, color: AppTheme.primaryBlue, size: 28),
-                        ),
-                        const SizedBox(width: 20),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(dept.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
-                              if (dept.description.isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                Text(dept.description, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
-                              ]
-                            ],
-                          ),
-                        ),
-                        if (isManager) ...[
-                          const SizedBox(width: 16),
-                          PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary),
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => CreateEditDepartmentDialog(
-                                    organizationId: orgContext.organization.id,
-                                    departmentToEdit: dept,
-                                  ),
-                                );
-                              } else if (value == 'delete') {
-                                _showDeleteConfirmation(context, ref, dept);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(value: 'edit', child: Row(children: [Icon(Icons.edit, size: 18), SizedBox(width: 8), Text('Edit')])),
-                              const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, size: 18, color: AppTheme.error), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppTheme.error))])),
-                            ],
-                          ),
-                        ],
-                      ],
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                itemCount: departments.length,
+                itemBuilder: (context, index) {
+                  final dept = departments[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: AppTheme.borderLight),
                     ),
-                  ),
-                ),
-              );
-            },
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      hoverColor: AppTheme.surfaceBlue.withValues(alpha: 0.3),
+                      onTap: () => context.go('/orgs/departments/${dept.id}'),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: AppTheme.surfaceBlue,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.domain_rounded, color: AppTheme.primaryBlue, size: 26),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    dept.name,
+                                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy),
+                                  ),
+                                  if (dept.description.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      dept.description,
+                                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.4),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            if (isManager) ...[
+                              const SizedBox(width: 12),
+                              PopupMenuButton<String>(
+                                icon: const Icon(Icons.more_vert_rounded, color: AppTheme.textSecondary),
+                                onSelected: (value) {
+                                  if (value == 'edit') {
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => CreateEditDepartmentDialog(
+                                        organizationId: orgContext.organization.id,
+                                        departmentToEdit: dept,
+                                      ),
+                                    );
+                                  } else if (value == 'delete') {
+                                    _showDeleteConfirmation(context, ref, dept);
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Row(children: [Icon(Icons.edit_rounded, size: 18), SizedBox(width: 8), Text('Edit')]),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'delete',
+                                    child: Row(children: [Icon(Icons.delete_rounded, size: 18, color: AppTheme.error), SizedBox(width: 8), Text('Delete', style: TextStyle(color: AppTheme.error))]),
+                                  ),
+                                ],
+                              ),
+                            ] else
+                              const Icon(Icons.chevron_right_rounded, color: AppTheme.borderLight),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
           );
         },
       ),

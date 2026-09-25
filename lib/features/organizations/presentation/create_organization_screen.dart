@@ -259,32 +259,25 @@ class _CreateOrganizationScreenState extends ConsumerState<CreateOrganizationScr
                   ),
                   const SizedBox(height: 16),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _countryController,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'Country *',
-                            prefixIcon: Icon(Icons.flag_outlined),
-                          ),
-                          validator: (v) => Validators.required(v, 'Country'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _cityController,
-                          textInputAction: TextInputAction.next,
-                          decoration: const InputDecoration(
-                            labelText: 'City *',
-                            prefixIcon: Icon(Icons.location_city_outlined),
-                          ),
-                          validator: (v) => Validators.required(v, 'City'),
-                        ),
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final country = TextFormField(
+                        controller: _countryController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(labelText: 'Country *', prefixIcon: Icon(Icons.flag_outlined)),
+                        validator: (v) => Validators.required(v, 'Country'),
+                      );
+                      final city = TextFormField(
+                        controller: _cityController,
+                        textInputAction: TextInputAction.next,
+                        decoration: const InputDecoration(labelText: 'City *', prefixIcon: Icon(Icons.location_city_outlined)),
+                        validator: (v) => Validators.required(v, 'City'),
+                      );
+                      if (constraints.maxWidth < 500) {
+                        return Column(children: [country, const SizedBox(height: 16), city]);
+                      }
+                      return Row(children: [Expanded(child: country), const SizedBox(width: 16), Expanded(child: city)]);
+                    },
                   ),
                   const SizedBox(height: 16),
 

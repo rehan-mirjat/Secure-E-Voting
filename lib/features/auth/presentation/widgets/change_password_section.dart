@@ -9,7 +9,8 @@ class ChangePasswordSection extends ConsumerStatefulWidget {
   const ChangePasswordSection({super.key});
 
   @override
-  ConsumerState<ChangePasswordSection> createState() => _ChangePasswordSectionState();
+  ConsumerState<ChangePasswordSection> createState() =>
+      _ChangePasswordSectionState();
 }
 
 class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
@@ -46,7 +47,7 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
       final authService = ref.read(authServiceProvider);
       await authService.changePassword(
         currentPassword: _currentPasswordController.text, // NO trimming
-        newPassword: _newPasswordController.text,         // NO trimming
+        newPassword: _newPasswordController.text, // NO trimming
       );
 
       if (mounted) {
@@ -78,54 +79,66 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Change Password',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy),
+                style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface),
               ),
               const Divider(height: 24),
-
               if (_successMessage != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppTheme.success.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.success.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppTheme.success.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.check_circle_outline, color: AppTheme.success),
+                      const Icon(Icons.check_circle_outline,
+                          color: AppTheme.success),
                       const SizedBox(width: 12),
-                      Expanded(child: Text(_successMessage!, style: const TextStyle(color: AppTheme.success))),
+                      Expanded(
+                          child: Text(_successMessage!,
+                              style: const TextStyle(color: AppTheme.success))),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
               ],
-
               if (_error != null) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppTheme.error.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppTheme.error.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
                       const Icon(Icons.error_outline, color: AppTheme.error),
                       const SizedBox(width: 12),
-                      Expanded(child: Text(_error!, style: const TextStyle(color: AppTheme.error))),
+                      Expanded(
+                          child: Text(_error!,
+                              style: const TextStyle(color: AppTheme.error))),
                     ],
                   ),
                 ),
                 const SizedBox(height: 16),
               ],
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('CURRENT PASSWORD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                  Text('CURRENT PASSWORD',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _currentPasswordController,
@@ -134,8 +147,13 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
                       hintText: '•••••••••••••',
                       prefixIcon: const Icon(Icons.lock_outline, size: 20),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscureCurrent ? Icons.visibility_off : Icons.visibility, size: 20),
-                        onPressed: () => setState(() => _obscureCurrent = !_obscureCurrent),
+                        icon: Icon(
+                            _obscureCurrent
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            size: 20),
+                        onPressed: () =>
+                            setState(() => _obscureCurrent = !_obscureCurrent),
                       ),
                     ),
                     validator: Validators.password,
@@ -143,11 +161,15 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
                 ],
               ),
               const SizedBox(height: 16),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('NEW PASSWORD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                  Text('NEW PASSWORD',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _newPasswordController,
@@ -156,8 +178,13 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
                       hintText: '•••••••••••••',
                       prefixIcon: const Icon(Icons.lock_reset, size: 20),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscureNew ? Icons.visibility_off : Icons.visibility, size: 20),
-                        onPressed: () => setState(() => _obscureNew = !_obscureNew),
+                        icon: Icon(
+                            _obscureNew
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            size: 20),
+                        onPressed: () =>
+                            setState(() => _obscureNew = !_obscureNew),
                       ),
                     ),
                     validator: Validators.password,
@@ -165,11 +192,15 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
                 ],
               ),
               const SizedBox(height: 16),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('CONFIRM NEW PASSWORD', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                  Text('CONFIRM NEW PASSWORD',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurface,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _confirmPasswordController,
@@ -178,22 +209,31 @@ class _ChangePasswordSectionState extends ConsumerState<ChangePasswordSection> {
                       hintText: '•••••••••••••',
                       prefixIcon: const Icon(Icons.lock_reset, size: 20),
                       suffixIcon: IconButton(
-                        icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility, size: 20),
-                        onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                        icon: Icon(
+                            _obscureConfirm
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            size: 20),
+                        onPressed: () =>
+                            setState(() => _obscureConfirm = !_obscureConfirm),
                       ),
                     ),
-                    validator: (v) => Validators.confirmPassword(v, _newPasswordController.text),
+                    validator: (v) => Validators.confirmPassword(
+                        v, _newPasswordController.text),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-
               Align(
                 alignment: Alignment.centerRight,
                 child: ElevatedButton(
                   onPressed: _isLoading ? null : _submit,
                   child: _isLoading
-                      ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
                       : const Text('Update Password'),
                 ),
               ),

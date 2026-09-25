@@ -33,123 +33,48 @@ class AuthSplitLayout extends StatelessWidget {
         body: SafeArea(
           child: Column(
             children: [
-              // Mobile Branding Header
               if (showMobileBranding)
-                Container(
-                  padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+                  child: Row(
                     children: [
-                      Row(
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: AppTheme.primaryBlue, borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.shield_rounded, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Text('SecureVote', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      const Text('Private by design', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: CustomScrollView(
+                  slivers: [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Column(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryBlue,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(Icons.security, color: Colors.white, size: 24),
-                          ),
-                          const SizedBox(width: 16),
-                          const Text(
-                            'SECUREVOTE',
-                            style: TextStyle(
-                              color: AppTheme.secondaryNavy,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentTeal.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.circle, size: 6, color: AppTheme.accentTeal),
-                                SizedBox(width: 6),
-                                Text(
-                                  'VERIFIABLE',
-                                  style: TextStyle(
-                                    color: AppTheme.accentTeal,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.1,
-                                  ),
-                                ),
-                              ],
+                          Expanded(child: child),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 24, top: 16),
+                            child: Text(
+                              'Secure voting for organizations',
+                              style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.5), fontSize: 10),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 24),
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppTheme.secondaryNavy,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Safeguarding civic democracy through absolute verifiability.',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                height: 1.3,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Icon(Icons.check_box_outlined, color: Colors.white.withValues(alpha: 0.6), size: 14),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Universal auditing compliant.',
-                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11),
-                                  ),
-                                )
-                              ],
-                            )
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            // Mobile form injection
-            Expanded(
-              child: CustomScrollView(
-                slivers: [
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Column(
-                      children: [
-                        Expanded(child: child),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 24, top: 16),
-                          child: Text(
-                            'SV-2026-SYS • FIPS 140-3 Compliance',
-                            style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.5), fontSize: 10),
-                          ),
-                        ),
-                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
+      );
     }
 
     return Scaffold(
@@ -199,7 +124,7 @@ class AuthSplitLayout extends StatelessWidget {
                         Icon(Icons.circle, size: 8, color: AppTheme.accentTeal),
                         SizedBox(width: 8),
                         Text(
-                          'END-TO-END VERIFIABLE',
+                          'PRIVACY-AWARE VOTING',
                           style: TextStyle(
                             color: AppTheme.accentTeal,
                             fontSize: 10,
@@ -212,7 +137,7 @@ class AuthSplitLayout extends StatelessWidget {
                   ),
                   const Spacer(),
                   const Text(
-                    'Safeguarding civic\ndemocracy through\nabsolute verifiability.',
+                    'Secure, private\nvoting for every\norganization.',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 40,
@@ -223,20 +148,20 @@ class AuthSplitLayout extends StatelessWidget {
                   const SizedBox(height: 48),
                   _buildFeatureItem(
                     icon: Icons.lock_outline,
-                    title: 'Cryptographically Secured Ballots',
-                    description: 'Each cast ballot is secured with state-of-the-art homomorphic encryption, preventing tamper risk.',
+                    title: 'Server-authorized voting',
+                    description: 'Ballots are validated and recorded by trusted backend services.',
                   ),
                   const SizedBox(height: 32),
                   _buildFeatureItem(
                     icon: Icons.fingerprint,
-                    title: 'Decentralized Identity Validation',
-                    description: 'Multi-factor multi-authority credential screening ensures zero-trust participant authorization.',
+                    title: 'Privacy-aware ballots',
+                    description: 'Anonymous ballots are separated from participation records.',
                   ),
                   const SizedBox(height: 32),
                   _buildFeatureItem(
                     icon: Icons.check_circle_outline,
-                    title: 'Individual & Universal Auditing',
-                    description: 'Verify that your personal ballot was cast as intended and mathematically counted as cast.',
+                    title: 'Clear participation receipts',
+                    description: 'Voters can confirm participation without revealing their selection.',
                   ),
                   const Spacer(),
                   const Divider(color: Color(0xFF334155)), // Slate 700
@@ -245,11 +170,11 @@ class AuthSplitLayout extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Platform ID: SV-2026-SYS',
+                        'SecureVote',
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                       ),
                       Text(
-                        'FIPS 140-3 Standard',
+                        'Android • iOS • Web',
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
                       ),
                     ],

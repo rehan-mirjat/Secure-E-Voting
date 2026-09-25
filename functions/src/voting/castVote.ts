@@ -1,55 +1,63 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+import { generateVoteReceipt } from "./generateReceipt";
 import { checkVoterEligibility } from "../utils/checkVoterEligibility";
 import { validateChoiceReference } from "../utils/choiceValidation";
-import { validateAnonymousBallotPayload, validateParticipationPayload } from "../utils/privacyValidation";
-import { generateVoteReceipt } from "./generateReceipt";
+import { validateAnonymousBallotPayload, validateIdentifiableBallotPayload } from "../utils/privacyValidation";
 
-export const castVote = onCall(async (request) => {
-  // 1. Authenticate caller
-  if (!request.auth || !request.auth.uid) {
-    throw new HttpsError("unauthenticated", "User must be authenticated to cast a ballot.");
+export interface CastVoteRequest {
+  organizationId: string;
+  eventId: string;
+  candidateId?: string;
+  pollOptionId?: string;
+}
+
+/**
+ * Server-authoritative double-entry voting transaction engine with privacy mode branching.
+ * Batch-fetches all transaction documents in 1 parallel network request to optimize latency.
+ */
+export const castVote = onCall({ cors: true }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Authentication is required to cast a vote.");
   }
 
-  const uid = request.auth.uid;
-  const db = getFirestore();
+  const data = request.data as CastVoteRequest;
+  const { organizationId, eventId, candidateId, pollOptionId } = data || {};
 
-  const { organizationId, eventId, candidateId, pollOptionId } = request.data || {};
-
-  if (!organizationId || typeof organizationId !== "string" || organizationId.trim().length === 0) {
-    throw new HttpsError("invalid-argument", "Valid organizationId is required.");
-  }
-
-  if (!eventId || typeof eventId !== "string" || eventId.trim().length === 0) {
-    throw new HttpsError("invalid-argument", "Valid eventId is required.");
+  if (!organizationId || !eventId) {
+    throw new HttpsError("invalid-argument", "organizationId and eventId are strictly required.");
   }
 
   const cleanOrgId = organizationId.trim();
   const cleanEventId = eventId.trim();
-  const cleanCandidateId = candidateId && typeof candidateId === "string" ? candidateId.trim() : null;
-  const cleanPollOptionId = pollOptionId && typeof pollOptionId === "string" ? pollOptionId.trim() : null;
+  const cleanCandidateId = candidateId?.trim();
+  const cleanPollOptionId = pollOptionId?.trim();
+
+  const db = getFirestore();
 
   try {
     const result = await db.runTransaction(async (transaction) => {
-      // --- READ PHASE (ALL READS MUST OCCUR BEFORE WRITES) ---
-
-      // Read 1: User Profile
+      // --- READ PHASE: BATCH ALL DOC READS IN 1 PARALLEL REQUEST ---
       const userRef = db.collection("users").doc(uid);
-      const userSnap = await transaction.get(userRef);
+      const participationRef = db.collection("participation").doc(`${cleanOrgId}_${cleanEventId}_${uid}`);
+      const eventRef = db.collection("votingEvents").doc(cleanEventId);
+      const memberRef = db.collection("organizationMembers").doc(`${cleanOrgId}_${uid}`);
+      const organizationRef = db.collection("organizations").doc(cleanOrgId);
+      const [userSnap, participationSnap, eventSnap, memberSnap, organizationSnap] =
+        await transaction.getAll(userRef, participationRef, eventRef, memberRef, organizationRef);
+
+      // Read 1: User Profile Validation
       if (!userSnap.exists || userSnap.data()?.status !== "active") {
         throw new HttpsError("permission-denied", "User profile is inactive or non-existent.");
       }
 
-      // Read 2: Participation Doc (Deterministic key: `${orgId}_${eventId}_${uid}`)
-      const participationRef = db.collection("participation").doc(`${cleanOrgId}_${cleanEventId}_${uid}`);
-      const participationSnap = await transaction.get(participationRef);
+      // Read 2: Participation Check (Deterministic duplicate prevention)
       if (participationSnap.exists) {
         throw new HttpsError("failed-precondition", "You have already voted in this voting event.");
       }
 
-      // Read 3: Voting Event Doc
-      const eventRef = db.collection("votingEvents").doc(cleanEventId);
-      const eventSnap = await transaction.get(eventRef);
+      // Read 3: Voting Event Validation
       if (!eventSnap.exists) {
         throw new HttpsError("not-found", "Target voting event not found.");
       }
@@ -57,6 +65,10 @@ export const castVote = onCall(async (request) => {
       const eventData = eventSnap.data()!;
       if (eventData.organizationId !== cleanOrgId) {
         throw new HttpsError("permission-denied", "Voting event belongs to a different organization.");
+      }
+
+      if (!organizationSnap.exists || !["verified", "active"].includes(organizationSnap.data()?.status)) {
+        throw new HttpsError("failed-precondition", "This organization is not currently authorized to run voting events.");
       }
 
       if (eventData.status !== "ACTIVE") {
@@ -71,97 +83,105 @@ export const castVote = onCall(async (request) => {
         throw new HttpsError("failed-precondition", "Voting window has not opened yet.");
       }
 
-      if (nowMillis > endMillis) {
+      if (nowMillis >= endMillis) {
         throw new HttpsError("failed-precondition", "Voting window has closed.");
       }
 
-      // Read 4: Eligibility Check (performs transaction reads on member and dept docs)
-      await checkVoterEligibility(transaction, db, {
-        organizationId: cleanOrgId,
-        eventId: cleanEventId,
-        userId: uid,
-      });
+      // Read 4: Eligibility Check (passes pre-fetched snaps)
+      await checkVoterEligibility(
+        transaction,
+        db,
+        { organizationId: cleanOrgId, eventId: cleanEventId, userId: uid },
+        { memberSnap, eventSnap }
+      );
 
-      // Read 5: Choice Reference Validation (performs transaction reads on candidate/option docs)
-      const choiceResult = await validateChoiceReference(transaction, db, {
-        organizationId: cleanOrgId,
-        eventId: cleanEventId,
-        candidateId: cleanCandidateId,
-        pollOptionId: cleanPollOptionId,
-      });
+      // Read 5: Choice Reference Validation (passes pre-fetched snaps)
+      const choiceResult = await validateChoiceReference(
+        transaction,
+        db,
+        {
+          organizationId: cleanOrgId,
+          eventId: cleanEventId,
+          candidateId: cleanCandidateId,
+          pollOptionId: cleanPollOptionId,
+        }
+      );
 
-      // --- WRITE PHASE (ALL WRITES AFTER READS) ---
+      // --- PRIVACY MODE BRANCHING & WRITE PHASE ---
+      const privacyMode = (eventData.privacyMode || "anonymous").toUpperCase();
+      const votesRef = db.collection("votes").doc();
+      const nowTs = Timestamp.now();
 
-      // 1. Prepare Anonymous Vote Document
-      const voteRef = db.collection("votes").doc();
-      const voteData: Record<string, any> = {
-        organizationId: cleanOrgId,
-        votingEventId: cleanEventId,
-        castAt: FieldValue.serverTimestamp(),
-      };
-      if (choiceResult.choiceType === "CANDIDATE") {
-        voteData.candidateId = choiceResult.choiceId;
+      if (privacyMode === "IDENTIFIABLE") {
+        validateIdentifiableBallotPayload({
+          organizationId: cleanOrgId,
+          votingEventId: cleanEventId,
+          ...(cleanCandidateId ? { candidateId: cleanCandidateId } : { pollOptionId: cleanPollOptionId }),
+          castAt: nowTs,
+          userId: uid,
+        }, uid);
+        transaction.set(votesRef, {
+          organizationId: cleanOrgId,
+          votingEventId: cleanEventId,
+          privacyMode: "IDENTIFIABLE",
+          choiceType: choiceResult.choiceType,
+          choiceId: choiceResult.choiceId,
+          userId: uid,
+          createdAt: nowTs,
+        });
       } else {
-        voteData.pollOptionId = choiceResult.choiceId;
+        validateAnonymousBallotPayload({
+          organizationId: cleanOrgId,
+          votingEventId: cleanEventId,
+          ...(cleanCandidateId ? { candidateId: cleanCandidateId } : { pollOptionId: cleanPollOptionId }),
+          castAt: nowTs,
+        });
+        transaction.set(votesRef, {
+          organizationId: cleanOrgId,
+          votingEventId: cleanEventId,
+          privacyMode: "ANONYMOUS",
+          choiceType: choiceResult.choiceType,
+          choiceId: choiceResult.choiceId,
+          createdAt: nowTs,
+        });
       }
 
-      // Validate ballot payload strictly enforces ZERO voter identity
-      validateAnonymousBallotPayload(voteData);
-
-      // 2. Prepare Participation Document
-      const participationData: Record<string, any> = {
+      // Write 2: Atomic Participation Record
+      transaction.set(participationRef, {
         organizationId: cleanOrgId,
         votingEventId: cleanEventId,
         userId: uid,
-        votedAt: FieldValue.serverTimestamp(),
-      };
+        votedAt: nowTs,
+      });
 
-      // Validate participation payload strictly enforces ZERO choice metadata
-      validateParticipationPayload(participationData);
-
-      // 3. Prepare Vote Receipt
-      const receiptDataObj = generateVoteReceipt(cleanOrgId, cleanEventId, uid, nowMillis);
-      const receiptRef = db.collection("voteReceipts").doc();
-      const receiptRecord = {
-        id: receiptRef.id,
+      // Write 3: Atomic Ballot Receipt
+      const receipt = generateVoteReceipt(cleanOrgId, cleanEventId, uid, nowTs.toMillis());
+      const receiptRef = db.collection("voteReceipts").doc(receipt.receiptId);
+      // A receipt proves acceptance/participation, never points to the ballot.
+      // In anonymous mode even an application-level receipt→vote link is forbidden.
+      transaction.set(receiptRef, {
         organizationId: cleanOrgId,
         votingEventId: cleanEventId,
         userId: uid,
-        votedAt: FieldValue.serverTimestamp(),
-        receiptHash: receiptDataObj.receiptHash,
-      };
-
-      // 4. Prepare Audit Log
-      const auditRef = db.collection("auditLogs").doc();
-      const auditData = {
-        organizationId: cleanOrgId,
-        actorUid: uid,
-        action: "CAST_VOTE_BALLOT",
-        resourceType: "votingEvent",
-        resourceId: cleanEventId,
-        metadata: {
-          votingType: eventData.votingType,
-          receiptId: receiptRef.id,
-        },
-        timestamp: FieldValue.serverTimestamp(),
-      };
-
-      // --- EXECUTE TRANSACTION WRITES ---
-      transaction.set(voteRef, voteData);
-      transaction.set(participationRef, participationData);
-      transaction.set(receiptRef, receiptRecord);
-      transaction.set(auditRef, auditData);
+        receiptHash: receipt.receiptHash,
+        privacyMode,
+        votedAt: nowTs,
+      });
 
       return {
+        status: "success",
         receiptId: receiptRef.id,
-        receiptHash: receiptDataObj.receiptHash,
-        votedAt: new Date(nowMillis).toISOString(),
+        privacyMode: privacyMode,
+        votedAt: nowTs.toDate().toISOString(),
+        receiptHash: receipt.receiptHash,
       };
     });
 
-    return { status: "success", ...result };
-  } catch (error: any) {
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", "Failed to cast ballot. Please try again.", error);
+    return result;
+  } catch (error) {
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", `An error occurred while processing your vote: ${(error as Error).message}`);
   }
 });

@@ -11,6 +11,7 @@ build/
 .firebase/
 firebase-debug.log
 firebase-debug.*.log
+firestore-debug.log
 
 # IDE
 .idea/
@@ -24,6 +25,8 @@ Thumbs.db
 # Functions
 functions/node_modules/
 functions/lib/
+test/node_modules/
+test/storage/node_modules/
 
 # Secrets
 google-services.json

@@ -2,24 +2,25 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import * as crypto from "crypto";
+import {
+  getJoinCodeSecret,
+  getLegacyInvitationSecret,
+  getLegacyJoinCodeSecret,
+  JOIN_CODE_SECRET,
+  LEGACY_INVITATION_SECRET,
+  LEGACY_JOIN_CODE_SECRET,
+} from "../utils/joinCodeSecret";
 
-function getJoinCodeSecret(): string {
-  if (process.env.JOIN_CODE_SECRET) {
-    return process.env.JOIN_CODE_SECRET;
-  }
-  if (process.env.FUNCTIONS_EMULATOR === "true" || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-    return "emulator-secret-key-98765-do-not-use-in-prod";
-  }
-  throw new HttpsError("internal", "Server configuration error: JOIN_CODE_SECRET is not configured.");
-}
-
-function computeTokenHmac(rawToken: string): string {
+function computeTokenHmac(rawToken: string, secret = getJoinCodeSecret()): string {
   const normalized = rawToken.trim().toUpperCase().replace(/[\s-]/g, "");
-  const secret = getJoinCodeSecret();
   return crypto.createHmac("sha256", secret).update(normalized).digest("hex");
 }
 
-export const acceptInvitation = onCall(async (request) => {
+export const acceptInvitation = onCall(
+  {
+    secrets: [JOIN_CODE_SECRET, LEGACY_INVITATION_SECRET, LEGACY_JOIN_CODE_SECRET],
+  },
+  async (request) => {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
@@ -37,7 +38,9 @@ export const acceptInvitation = onCall(async (request) => {
   let userEmail = "";
   try {
     const userAuthRecord = await getAuth().getUser(uid);
-    if (!userAuthRecord.emailVerified) {
+    const isGoogleUser = userAuthRecord.providerData.some((p) => p.providerId === "google.com");
+
+    if (!userAuthRecord.emailVerified && !isGoogleUser) {
       throw new HttpsError("permission-denied", "Your email address must be verified before accepting an invitation.");
     }
     userEmail = (userAuthRecord.email || "").trim().toLowerCase();
@@ -85,11 +88,24 @@ export const acceptInvitation = onCall(async (request) => {
     }
   };
 
-  const computedHash = computeTokenHmac(rawToken.trim());
+  let computedHash = computeTokenHmac(rawToken.trim());
 
   // 4. Resolve Token Hash -> Opaque Invitation ID
-  const tokenLookupRef = db.collection("organizationInvitationTokens").doc(computedHash);
-  const tokenLookupSnap = await tokenLookupRef.get();
+  let tokenLookupRef = db.collection("organizationInvitationTokens").doc(computedHash);
+  let tokenLookupSnap = await tokenLookupRef.get();
+
+  // Read invitations created with either legacy fallback. New tokens always
+  // use the rotated secret above.
+  const legacySecrets = [
+    getLegacyInvitationSecret(),
+    getLegacyJoinCodeSecret(),
+  ].filter((secret): secret is string => !!secret && secret !== getJoinCodeSecret());
+  for (const legacySecret of legacySecrets) {
+    if (tokenLookupSnap.exists) break;
+    computedHash = computeTokenHmac(rawToken.trim(), legacySecret);
+    tokenLookupRef = db.collection("organizationInvitationTokens").doc(computedHash);
+    tokenLookupSnap = await tokenLookupRef.get();
+  }
 
   if (!tokenLookupSnap.exists) {
     await recordFailedAttempt();
@@ -223,4 +239,5 @@ export const acceptInvitation = onCall(async (request) => {
     await recordFailedAttempt();
     throw new HttpsError("internal", "Failed to accept invitation.", error);
   }
-});
+  },
+);

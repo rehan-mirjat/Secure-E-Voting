@@ -4,8 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../data/organization_repository.dart';
 
-final pendingInvitationsProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, organizationId) async {
-  return ref.watch(organizationRepositoryProvider).getPendingInvitations(organizationId);
+final pendingInvitationsProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>(
+        (ref, organizationId) async {
+  return ref
+      .watch(organizationRepositoryProvider)
+      .getPendingInvitations(organizationId);
 });
 
 class PendingInvitationsWidget extends ConsumerWidget {
@@ -39,7 +43,9 @@ class PendingInvitationsWidget extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final invitationsAsync = ref.watch(pendingInvitationsProvider(organizationId));
+    final invitationsAsync =
+        ref.watch(pendingInvitationsProvider(organizationId));
+    final compact = MediaQuery.sizeOf(context).width < 500;
 
     return Card(
       elevation: 0,
@@ -48,7 +54,7 @@ class PendingInvitationsWidget extends ConsumerWidget {
         side: const BorderSide(color: AppTheme.borderLight),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(compact ? 14 : 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -57,17 +63,20 @@ class PendingInvitationsWidget extends ConsumerWidget {
               children: [
                 const Text(
                   'Pending Invitations',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy),
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.secondaryNavy),
                 ),
                 IconButton(
                   icon: const Icon(Icons.refresh, size: 20),
                   tooltip: 'Refresh Invitations',
-                  onPressed: () => ref.invalidate(pendingInvitationsProvider(organizationId)),
+                  onPressed: () => ref
+                      .invalidate(pendingInvitationsProvider(organizationId)),
                 ),
               ],
             ),
             const Divider(height: 20),
-
             invitationsAsync.when(
               loading: () => const Padding(
                 padding: EdgeInsets.all(16),
@@ -83,7 +92,8 @@ class PendingInvitationsWidget extends ConsumerWidget {
                     padding: EdgeInsets.symmetric(vertical: 12),
                     child: Text(
                       'No pending invitations found for this organization.',
-                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+                      style: TextStyle(
+                          color: AppTheme.textSecondary, fontSize: 13),
                     ),
                   );
                 }
@@ -106,43 +116,71 @@ class PendingInvitationsWidget extends ConsumerWidget {
 
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(vertical: 4),
-                      leading: const Icon(Icons.mark_email_unread_outlined, color: AppTheme.primaryBlue, size: 22),
+                      leading: const Icon(Icons.mark_email_unread_outlined,
+                          color: AppTheme.primaryBlue, size: 22),
                       title: Row(
                         children: [
-                          Text(email, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.secondaryNavy)),
+                          Expanded(
+                            child: Text(
+                              email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: AppTheme.secondaryNavy),
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 2),
                             decoration: BoxDecoration(
-                              color: role.toLowerCase() == 'admin' ? AppTheme.primaryBlue.withValues(alpha: 0.1) : Colors.grey.shade100,
+                              color: role.toLowerCase() == 'admin'
+                                  ? AppTheme.primaryBlue.withValues(alpha: 0.1)
+                                  : Colors.grey.shade100,
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Text(
                               role.toUpperCase(),
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: role.toLowerCase() == 'admin' ? AppTheme.primaryBlue : AppTheme.secondaryNavy),
+                              style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: role.toLowerCase() == 'admin'
+                                      ? AppTheme.primaryBlue
+                                      : AppTheme.secondaryNavy),
                             ),
                           ),
                         ],
                       ),
                       subtitle: expiryText.isNotEmpty
-                          ? Text(expiryText, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary))
+                          ? Text(expiryText,
+                              style: const TextStyle(
+                                  fontSize: 12, color: AppTheme.textSecondary))
                           : null,
                       trailing: canRevoke
                           ? OutlinedButton(
                               onPressed: () async {
                                 try {
-                                  await ref.read(organizationRepositoryProvider).revokeInvitation(invitationId);
-                                  ref.invalidate(pendingInvitationsProvider(organizationId));
+                                  await ref
+                                      .read(organizationRepositoryProvider)
+                                      .revokeInvitation(invitationId);
+                                  ref.invalidate(pendingInvitationsProvider(
+                                      organizationId));
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Invitation revoked successfully.'), backgroundColor: AppTheme.success),
+                                      const SnackBar(
+                                          content: Text(
+                                              'Invitation revoked successfully.'),
+                                          backgroundColor: AppTheme.success),
                                     );
                                   }
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('Failed to revoke invitation: ${e.toString().replaceAll("Exception: ", "")}'),
+                                        content: Text(
+                                            'Failed to revoke invitation: ${e.toString().replaceAll("Exception: ", "")}'),
                                         backgroundColor: AppTheme.error,
                                       ),
                                     );
@@ -156,8 +194,10 @@ class PendingInvitationsWidget extends ConsumerWidget {
                               child: const Text('Revoke'),
                             )
                           : const Tooltip(
-                              message: 'Only Owner can revoke Admin-level invitations',
-                              child: Icon(Icons.lock_outline, size: 18, color: AppTheme.textSecondary),
+                              message:
+                                  'Only Owner can revoke Admin-level invitations',
+                              child: Icon(Icons.lock_outline,
+                                  size: 18, color: AppTheme.textSecondary),
                             ),
                     );
                   },

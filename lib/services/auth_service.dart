@@ -53,21 +53,28 @@ class AuthService {
             .get();
 
         if (!userDoc.exists) {
-          final names = (user.displayName ?? 'Google User').trim().split(' ');
-          final firstName = names.first;
-          final lastName = names.length > 1 ? names.sublist(1).join(' ') : '';
+          final rawName = (user.displayName ?? 'Google User').trim();
+          final names = rawName.isNotEmpty ? rawName.split(' ') : ['Google', 'User'];
+          final firstName = names.first.isNotEmpty ? names.first : 'Google';
+          final lastName = names.length > 1 && names.sublist(1).join(' ').trim().isNotEmpty
+              ? names.sublist(1).join(' ').trim()
+              : 'User';
 
-          await _firebase.functions.httpsCallable('completeRegistration').call({
-            'firstName': firstName,
-            'lastName': lastName,
-          });
+          try {
+            await _firebase.functions.httpsCallable('completeRegistration').call({
+              'firstName': firstName,
+              'lastName': lastName,
+            });
+          } catch (_) {
+            throw Exception('Secure account setup failed. Please sign in again or contact support.');
+          }
 
-          // Set photoUrl from google photo if present, but do not overwrite later
+          // Set photoUrl from google photo if present
           if (user.photoURL != null) {
             await _firebase.firestore
                 .collection('users')
                 .doc(user.uid)
-                .update({'photoUrl': user.photoURL});
+                .update({'photoUrl': user.photoURL}).catchError((_) => null);
           }
         }
 
@@ -210,4 +217,11 @@ final authServiceProvider = Provider<AuthService>((ref) => AuthService());
 
 final authStateChangesProvider = StreamProvider<User?>((ref) {
   return ref.watch(authServiceProvider).authStateChanges;
+});
+
+final platformAdminProvider = FutureProvider<bool>((ref) async {
+  final user = ref.watch(authStateChangesProvider).value;
+  if (user == null) return false;
+  final token = await user.getIdTokenResult();
+  return token.claims?['platformAdmin'] == true;
 });

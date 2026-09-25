@@ -27,6 +27,11 @@ export const closeVotingEvent = onCall(async (request) => {
       const organizationId = eventData.organizationId;
       const currentStatus = eventData.status;
 
+      const organizationSnap = await transaction.get(db.collection("organizations").doc(organizationId));
+      if (!organizationSnap.exists || !["verified", "active"].includes(organizationSnap.data()?.status)) {
+        throw new HttpsError("failed-precondition", "The organization must be verified to manage voting events.");
+      }
+
       // Strict Transition: ACTIVE -> CLOSED only
       if (currentStatus !== "ACTIVE") {
         throw new HttpsError("failed-precondition", `Only ACTIVE events can be closed. Current status: '${currentStatus}'`);
@@ -36,7 +41,8 @@ export const closeVotingEvent = onCall(async (request) => {
       const callerMemberRef = db.collection("organizationMembers").doc(`${organizationId}_${uid}`);
       const callerMemberSnap = await transaction.get(callerMemberRef);
 
-      if (!callerMemberSnap.exists || callerMemberSnap.data()?.status !== "active") {
+      if (!callerMemberSnap.exists || callerMemberSnap.data()?.status !== "active" ||
+          callerMemberSnap.data()?.organizationId !== organizationId || callerMemberSnap.data()?.userId !== uid) {
         throw new HttpsError("permission-denied", "You are not an active member of this organization.");
       }
 

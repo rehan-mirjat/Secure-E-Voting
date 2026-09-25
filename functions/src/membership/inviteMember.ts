@@ -1,16 +1,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import * as crypto from "crypto";
+import { getJoinCodeSecret, JOIN_CODE_SECRET } from "../utils/joinCodeSecret";
 
 const EMAIL_REGEX = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
-
-function getJoinCodeSecret(): string {
-  if (process.env.JOIN_CODE_SECRET) {
-    return process.env.JOIN_CODE_SECRET;
-  }
-  return "securevote-secret-join-code-key-2026";
-}
 
 function computeTokenHmac(rawToken: string): string {
   const normalized = rawToken.trim().toUpperCase().replace(/[\s-]/g, "");
@@ -18,7 +12,7 @@ function computeTokenHmac(rawToken: string): string {
   return crypto.createHmac("sha256", secret).update(normalized).digest("hex");
 }
 
-export const inviteMember = onCall(async (request) => {
+export const inviteMember = onCall({ secrets: [JOIN_CODE_SECRET] }, async (request) => {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
@@ -47,7 +41,16 @@ export const inviteMember = onCall(async (request) => {
 
   // Verify Caller Role & Tenant Authorization
   const callerMemberRef = db.collection("organizationMembers").doc(`${organizationId}_${uid}`);
-  const callerMemberSnap = await callerMemberRef.get();
+  let callerMemberSnap;
+  try {
+    callerMemberSnap = await callerMemberRef.get();
+  } catch (error) {
+    console.error("inviteMember failed to read caller membership", error);
+    const details = process.env.FUNCTIONS_EMULATOR === "true"
+      ? { message: error instanceof Error ? error.message : String(error) }
+      : undefined;
+    throw new HttpsError("internal", "Could not verify your organization membership.", details);
+  }
 
   if (!callerMemberSnap.exists || callerMemberSnap.data()?.status !== "active") {
     throw new HttpsError("permission-denied", "You are not an active member of this organization.");
@@ -63,7 +66,9 @@ export const inviteMember = onCall(async (request) => {
     throw new HttpsError("permission-denied", "Only the Organization Owner can issue Admin invitations.");
   }
 
-  // Member Check via Admin Auth SDK
+  // Best-effort duplicate-member check. Issuing a token must not depend on the
+  // Auth lookup service being available; acceptInvitation independently checks
+  // the target email and rejects an already-active membership transactionally.
   try {
     const targetUser = await getAuth().getUserByEmail(normalizedEmail);
     if (targetUser && targetUser.uid) {
@@ -74,7 +79,11 @@ export const inviteMember = onCall(async (request) => {
     }
   } catch (e: any) {
     if (e instanceof HttpsError) throw e;
-    // user-not-found from Admin Auth is expected for unregistered users
+    if (e?.code !== "auth/user-not-found") {
+      console.warn("inviteMember recipient preflight unavailable; continuing with token issuance", {
+        code: e?.code ?? "unknown",
+      });
+    }
   }
 
   // Generate 32-char CSPRNG Raw Token & HMAC Hash
@@ -92,6 +101,8 @@ export const inviteMember = onCall(async (request) => {
   const auditRef = db.collection("auditLogs").doc();
 
   // Transactional Lock Claiming & Invitation Creation
+  let txError: { code: any, message: string } | null = null;
+
   try {
     await db.runTransaction(async (transaction) => {
       const lockSnap = await transaction.get(lockRef);
@@ -106,7 +117,8 @@ export const inviteMember = onCall(async (request) => {
             const isNotExpired = invData.expiresAt ? invData.expiresAt.toDate().getTime() > Date.now() : false;
 
             if (isPending && isNotExpired) {
-              throw new HttpsError("already-exists", "An active invitation for this email address already exists.");
+              txError = { code: "already-exists", message: "An active invitation for this email address already exists." };
+              return;
             }
           }
         }
@@ -130,7 +142,7 @@ export const inviteMember = onCall(async (request) => {
         role: role,
         status: "pending",
         invitedBy: uid,
-        expiresAt: expiresAt,
+        expiresAt: Timestamp.fromDate(expiresAt),
         createdAt: FieldValue.serverTimestamp(),
         acceptedAt: null,
       });
@@ -157,6 +169,10 @@ export const inviteMember = onCall(async (request) => {
       });
     });
 
+    if (txError) {
+      throw new HttpsError((txError as any).code, (txError as any).message);
+    }
+
     return {
       status: "success",
       rawToken: rawToken, // Returned ONLY ONCE to caller
@@ -165,16 +181,10 @@ export const inviteMember = onCall(async (request) => {
     };
   } catch (error: any) {
     if (error instanceof HttpsError) throw error;
-
-    const msg: string = error?.message || "";
-    if (msg.includes("already exists") || msg.includes("already an active member") || msg.includes("active invitation")) {
-      throw new HttpsError("already-exists", msg);
-    }
-    if (msg.includes("permission") || msg.includes("denied")) {
-      throw new HttpsError("permission-denied", msg);
-    }
-
     console.error("Error in inviteMember:", error);
-    throw new HttpsError("internal", msg || "Failed to create invitation.");
+    const details = process.env.FUNCTIONS_EMULATOR === "true"
+      ? { message: error instanceof Error ? error.message : String(error) }
+      : undefined;
+    throw new HttpsError("internal", "Failed to create invitation.", details);
   }
 });

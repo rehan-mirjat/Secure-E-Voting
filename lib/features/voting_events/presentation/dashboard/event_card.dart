@@ -115,25 +115,24 @@ class EventCard extends ConsumerWidget {
   Widget _buildActionButtons(BuildContext context, WidgetRef ref) {
     switch (event.status) {
       case VotingEventStatus.draft:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        return Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             TextButton.icon(
               onPressed: () => _confirmDelete(context, ref),
               icon: const Icon(Icons.delete, color: AppTheme.error, size: 18),
               label: const Text('Delete', style: TextStyle(color: AppTheme.error)),
             ),
-            const Spacer(),
             OutlinedButton(
               onPressed: () => context.go('/admin/events/${event.id}/choices'),
               child: const Text('Manage Choices'),
             ),
-            const SizedBox(width: 8),
             ElevatedButton(
               onPressed: () => context.go('/admin/events/${event.id}/edit'),
               child: const Text('Edit Config'),
             ),
-            const SizedBox(width: 8),
             ElevatedButton(
               onPressed: () => context.go('/admin/events/${event.id}/review'),
               child: const Text('Publish'),
@@ -141,15 +140,16 @@ class EventCard extends ConsumerWidget {
           ],
         );
       case VotingEventStatus.scheduled:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        return Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             TextButton.icon(
               onPressed: () => _confirmCancel(context, ref),
               icon: const Icon(Icons.cancel, color: AppTheme.error, size: 18),
               label: const Text('Cancel Event', style: TextStyle(color: AppTheme.error)),
             ),
-            const Spacer(),
             OutlinedButton(
               onPressed: () {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Details view coming in Milestone 6.')));
@@ -159,39 +159,40 @@ class EventCard extends ConsumerWidget {
           ],
         );
       case VotingEventStatus.active:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        return Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             TextButton.icon(
               onPressed: () => _confirmClose(context, ref),
               icon: const Icon(Icons.stop_circle, color: AppTheme.error, size: 18),
               label: const Text('Close Early', style: TextStyle(color: AppTheme.error)),
             ),
-            const Spacer(),
             ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Monitor Turnout coming in Milestone 6.')));
-              },
+              onPressed: () => context.go('/admin/events/${event.id}/monitor'),
               child: const Text('Monitor Turnout'),
             ),
           ],
         );
       case VotingEventStatus.closed:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        return Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             ElevatedButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('View Results coming in Milestone 6.')));
-              },
+              onPressed: () => context.go('/elections/${event.id}/results'),
               child: const Text('View Results'),
             ),
           ],
         );
       case VotingEventStatus.cancelled:
       case VotingEventStatus.archived:
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        return Wrap(
+          alignment: WrapAlignment.end,
+          spacing: 8,
+          runSpacing: 8,
           children: [
             OutlinedButton(
               onPressed: () {

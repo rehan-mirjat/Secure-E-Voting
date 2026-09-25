@@ -28,6 +28,23 @@ String mapFirebaseAuthError(FirebaseAuthException error) {
 
 String mapFirebaseFunctionsError(dynamic error) {
   if (error is FirebaseFunctionsException) {
+    final details = error.details;
+    final detailMessage = switch (details) {
+      String message when message.trim().isNotEmpty => message.trim(),
+      Map details
+          when details['message'] is String &&
+              (details['message'] as String).trim().isNotEmpty =>
+        (details['message'] as String).trim(),
+      _ => null,
+    };
+    final functionMessage = error.message?.trim();
+    final usefulMessage = detailMessage ??
+        (functionMessage != null &&
+                functionMessage.isNotEmpty &&
+                functionMessage.toLowerCase() != error.code.toLowerCase()
+            ? functionMessage
+            : null);
+
     switch (error.code) {
       case 'unauthenticated':
         return 'You must be signed in to perform this action.';
@@ -36,13 +53,15 @@ String mapFirebaseFunctionsError(dynamic error) {
       case 'invalid-argument':
         return error.message ?? 'Invalid request parameter.';
       case 'failed-precondition':
-        return error.message ?? 'This request cannot be completed in the current state.';
+        return error.message ??
+            'This request cannot be completed in the current state.';
       case 'already-exists':
         return error.message ?? 'Resource already exists.';
       case 'resource-exhausted':
         return 'Too many failed attempts. Please wait 5 minutes before trying again.';
       case 'internal':
-        return 'Unable to process server request. Please try again later.';
+        return usefulMessage ??
+            'The server could not complete this request. Please try again shortly.';
       default:
         return error.message ?? 'Unable to process request. Please try again.';
     }

@@ -34,7 +34,7 @@ export const deleteCandidatePhoto = onCall(async (request) => {
 
       // Validate Parent Event Status
       const eventSnap = await transaction.get(db.collection("votingEvents").doc(votingEventId));
-      if (!eventSnap.exists || eventSnap.data()?.status !== "DRAFT") {
+      if (!eventSnap.exists || eventSnap.data()?.status !== "DRAFT" || eventSnap.data()?.organizationId !== orgId) {
         throw new HttpsError("failed-precondition", "Candidate photo can be deleted ONLY for DRAFT events.");
       }
 
@@ -42,7 +42,8 @@ export const deleteCandidatePhoto = onCall(async (request) => {
       const callerRef = db.collection("organizationMembers").doc(`${orgId}_${uid}`);
       const callerSnap = await transaction.get(callerRef);
 
-      if (!callerSnap.exists || callerSnap.data()?.status !== "active") {
+      if (!callerSnap.exists || callerSnap.data()?.status !== "active" ||
+          callerSnap.data()?.organizationId !== orgId || callerSnap.data()?.userId !== uid) {
         throw new HttpsError("permission-denied", "You are not an active member of this organization.");
       }
 
@@ -77,7 +78,7 @@ export const deleteCandidatePhoto = onCall(async (request) => {
     if (targetPhotoPath) {
       try {
         const storage = getStorage();
-        const bucket = storage.bucket("vote-d1ae4.firebasestorage.app");
+        const bucket = storage.bucket();
         await bucket.file(targetPhotoPath).delete();
       } catch (e) {
         // Storage cleanup errors do not fail the completed Firestore transaction

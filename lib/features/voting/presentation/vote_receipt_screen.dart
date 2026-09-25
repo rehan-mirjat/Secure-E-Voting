@@ -74,7 +74,7 @@ class VoteReceiptScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                 ],
 
-                // Non-coerciveness Secrecy Banner
+                // Non-revealing Secrecy Banner
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -88,7 +88,7 @@ class VoteReceiptScreen extends ConsumerWidget {
                       SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Your vote is completely anonymous. This digital receipt confirms ballot acceptance without revealing or encoding your selection.',
+                          'This digital receipt confirms your participation and ballot acceptance without revealing or encoding your selected choice.',
                           style: TextStyle(fontSize: 13, height: 1.4, color: AppTheme.secondaryNavy),
                         ),
                       ),

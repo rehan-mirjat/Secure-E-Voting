@@ -17,7 +17,7 @@ final userMembershipsProvider = StreamProvider<List<OrganizationMember>>((ref) {
 });
 
 /// Streams the full list of [Organization] documents corresponding to active memberships.
-/// Handles deleted/missing organization documents gracefully without failing the entire stream.
+/// Parallelizes organization document fetching for high-speed loading.
 final userOrganizationsProvider = StreamProvider<List<Organization>>((ref) async* {
   final membershipsAsync = ref.watch(userMembershipsProvider);
   final repo = ref.watch(organizationRepositoryProvider);
@@ -29,18 +29,10 @@ final userOrganizationsProvider = StreamProvider<List<Organization>>((ref) async
   }
 
   final orgIds = memberships.map((m) => m.organizationId).toSet().toList();
-  final orgs = <Organization>[];
 
-  for (final id in orgIds) {
-    try {
-      final org = await repo.getOrganization(id);
-      if (org != null && org.isSelectable) {
-        orgs.add(org);
-      }
-    } catch (_) {
-      // Gracefully ignore individual org fetch errors
-    }
-  }
+  // Parallelize fetches in 1 round trip instead of a sequential loop
+  final results = await Future.wait(orgIds.map((id) => repo.getOrganization(id)));
+  final orgs = results.whereType<Organization>().where((org) => org.isSelectable).toList();
 
   yield orgs;
 });
@@ -54,6 +46,7 @@ class ActiveOrgIdNotifier extends StateNotifier<String?> {
         _loadSavedOrgId();
       } else {
         state = null; // Clear on logout
+        _ref.read(organizationRepositoryProvider).clearCache();
       }
     });
     _loadSavedOrgId();

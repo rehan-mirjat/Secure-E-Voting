@@ -39,6 +39,7 @@ class UserRepository {
   Future<String> uploadProfilePhoto({
     required String uid,
     required List<int> imageBytes,
+    required String fileExtension,
   }) async {
     final currentUser = _firebase.auth.currentUser;
     if (currentUser == null || currentUser.uid != uid) {
@@ -47,14 +48,29 @@ class UserRepository {
 
     // Enforce 500 KB (512,000 bytes) limit
     if (imageBytes.length > 512000) {
-      throw Exception('Profile photo exceeds 500 KB size limit (512,000 bytes).');
+      throw Exception(
+          'Profile photo exceeds 500 KB size limit (512,000 bytes).');
     }
 
-    // Upload to user-scoped path: users/{uid}/profile/avatar.jpg
-    final storageRef = _firebase.storage.ref().child('users/$uid/profile/avatar.jpg');
+    const supportedTypes = {'jpg', 'png', 'webp'};
+    if (!supportedTypes.contains(fileExtension)) {
+      throw Exception('Choose a JPEG, PNG, or WebP image.');
+    }
+    final contentType = switch (fileExtension) {
+      'jpg' => 'image/jpeg',
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      _ => throw Exception('Choose a JPEG, PNG, or WebP image.'),
+    };
+
+    // Keep the object extension and response MIME type aligned so desktop
+    // browsers can decode the uploaded image reliably.
+    final storageRef = _firebase.storage
+        .ref()
+        .child('users/$uid/profile/avatar.$fileExtension');
     final uploadTask = await storageRef.putData(
       Uint8List.fromList(imageBytes),
-      SettableMetadata(contentType: 'image/jpeg'),
+      SettableMetadata(contentType: contentType),
     );
 
     final downloadUrl = await uploadTask.ref.getDownloadURL();
@@ -71,7 +87,8 @@ class UserRepository {
   }
 }
 
-final userRepositoryProvider = Provider<UserRepository>((ref) => UserRepository());
+final userRepositoryProvider =
+    Provider<UserRepository>((ref) => UserRepository());
 
 final userProfileProvider = StreamProvider.family<AppUser?, String>((ref, uid) {
   return ref.watch(userRepositoryProvider).watchUserProfile(uid);

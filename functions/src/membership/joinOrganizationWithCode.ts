@@ -2,24 +2,21 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import * as crypto from "crypto";
+import {
+  getJoinCodeSecret,
+  getLegacyJoinCodeSecret,
+  JOIN_CODE_SECRET,
+  LEGACY_JOIN_CODE_SECRET,
+} from "../utils/joinCodeSecret";
 
-function getJoinCodeSecret(): string {
-  if (process.env.JOIN_CODE_SECRET) {
-    return process.env.JOIN_CODE_SECRET;
-  }
-  if (process.env.FUNCTIONS_EMULATOR === "true" || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-    return "emulator-secret-key-98765-do-not-use-in-prod";
-  }
-  throw new HttpsError("internal", "Server configuration error: JOIN_CODE_SECRET is not configured.");
-}
-
-function computeCodeHmac(rawCode: string): string {
+function computeCodeHmac(rawCode: string, secret = getJoinCodeSecret()): string {
   const normalized = rawCode.trim().toUpperCase().replace(/[\s-]/g, "");
-  const secret = getJoinCodeSecret();
   return crypto.createHmac("sha256", secret).update(normalized).digest("hex");
 }
 
-export const joinOrganizationWithCode = onCall(async (request) => {
+export const joinOrganizationWithCode = onCall(
+  { secrets: [JOIN_CODE_SECRET, LEGACY_JOIN_CODE_SECRET] },
+  async (request) => {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
@@ -83,11 +80,21 @@ export const joinOrganizationWithCode = onCall(async (request) => {
     }, { merge: true });
   });
 
-  const computedHash = computeCodeHmac(rawCode);
+  let computedHash = computeCodeHmac(rawCode);
 
   // 4. Read Joining Code Document Deterministically by `codeHash`
-  const codeRef = db.collection("joiningCodes").doc(computedHash);
-  const codeSnap = await codeRef.get();
+  let codeRef = db.collection("joiningCodes").doc(computedHash);
+  let codeSnap = await codeRef.get();
+
+  // Maintain acceptance for codes issued before the HMAC key was rotated.
+  if (!codeSnap.exists) {
+    const legacySecret = getLegacyJoinCodeSecret();
+    if (legacySecret) {
+      computedHash = computeCodeHmac(rawCode, legacySecret);
+      codeRef = db.collection("joiningCodes").doc(computedHash);
+      codeSnap = await codeRef.get();
+    }
+  }
 
   if (!codeSnap.exists) {
     throw new HttpsError("invalid-argument", "Invalid joining code.");
@@ -190,4 +197,5 @@ export const joinOrganizationWithCode = onCall(async (request) => {
     if (error instanceof HttpsError) throw error;
     throw new HttpsError("internal", "Failed to join organization.", error);
   }
-});
+  },
+);

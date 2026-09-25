@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/widgets/google_g_logo.dart';
 import '../../../services/auth_service.dart';
 import 'widgets/auth_split_layout.dart';
 
@@ -158,7 +159,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     return AuthSplitLayout(
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+          padding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.sizeOf(context).width < 380 ? 12 : 24,
+            vertical: MediaQuery.sizeOf(context).height < 700 ? 20 : 40,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: Card(
@@ -168,7 +172,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 side: const BorderSide(color: AppTheme.borderLight),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(40),
+                padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 420 ? 20 : 36),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -208,42 +212,41 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('FIRST NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
-                                      const SizedBox(height: 8),
-                                      TextFormField(
-                                        controller: _firstNameController,
-                                        textInputAction: TextInputAction.next,
-                                        autofillHints: const [AutofillHints.givenName],
-                                        decoration: const InputDecoration(hintText: 'First', prefixIcon: Icon(Icons.person_outline, size: 20)),
-                                        validator: (v) => Validators.required(v, 'First Name'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('LAST NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
-                                      const SizedBox(height: 8),
-                                      TextFormField(
-                                        controller: _lastNameController,
-                                        textInputAction: TextInputAction.next,
-                                        autofillHints: const [AutofillHints.familyName],
-                                        decoration: const InputDecoration(hintText: 'Last', prefixIcon: Icon(Icons.person_outline, size: 20)),
-                                        validator: (v) => Validators.required(v, 'Last Name'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final firstName = Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('FIRST NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _firstNameController,
+                                      textInputAction: TextInputAction.next,
+                                      autofillHints: const [AutofillHints.givenName],
+                                      decoration: const InputDecoration(hintText: 'First', prefixIcon: Icon(Icons.person_outline, size: 20)),
+                                      validator: (v) => Validators.required(v, 'First Name'),
+                                    ),
+                                  ],
+                                );
+                                final lastName = Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('LAST NAME', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                                    const SizedBox(height: 8),
+                                    TextFormField(
+                                      controller: _lastNameController,
+                                      textInputAction: TextInputAction.next,
+                                      autofillHints: const [AutofillHints.familyName],
+                                      decoration: const InputDecoration(hintText: 'Last', prefixIcon: Icon(Icons.person_outline, size: 20)),
+                                      validator: (v) => Validators.required(v, 'Last Name'),
+                                    ),
+                                  ],
+                                );
+                                if (constraints.maxWidth < 500) {
+                                  return Column(children: [firstName, const SizedBox(height: 16), lastName]);
+                                }
+                                return Row(children: [Expanded(child: firstName), const SizedBox(width: 16), Expanded(child: lastName)]);
+                              },
                             ),
                             const SizedBox(height: 20),
                             const Text('EMAIL ADDRESS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
@@ -342,11 +345,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       const SizedBox(height: 24),
                       OutlinedButton.icon(
                         onPressed: _isLoading ? null : _googleSignIn,
-                        icon: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
-                          height: 18,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata_rounded, size: 24),
-                        ),
+                        icon: const GoogleGLogo(size: 18),
                         label: const Text('Continue with Google', style: TextStyle(color: AppTheme.secondaryNavy)),
                       ),
                       const SizedBox(height: 32),

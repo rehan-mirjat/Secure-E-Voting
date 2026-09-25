@@ -11,6 +11,7 @@ class VotingEventRepository {
     required String title,
     required String description,
     required String votingType,
+    String privacyMode = 'ANONYMOUS',
     required String eligibilityType,
     List<String>? eligibilityDepartmentIds,
     List<String>? eligibilityUserIds,
@@ -24,6 +25,7 @@ class VotingEventRepository {
         'title': title,
         'description': description,
         'votingType': votingType,
+        'privacyMode': privacyMode,
         'eligibilityType': eligibilityType,
         if (eligibilityDepartmentIds != null) 'eligibilityDepartmentIds': eligibilityDepartmentIds,
         if (eligibilityUserIds != null) 'eligibilityUserIds': eligibilityUserIds,
@@ -38,6 +40,8 @@ class VotingEventRepository {
 
   Future<void> updateVotingEvent({
     required String eventId,
+    String? votingType,
+    String? privacyMode,
     String? title,
     String? description,
     DateTime? startAt,
@@ -50,6 +54,8 @@ class VotingEventRepository {
       final callable = _firebase.functions.httpsCallable('updateVotingEvent');
       final payload = <String, dynamic>{
         'eventId': eventId,
+        if (votingType != null) 'votingType': votingType,
+        if (privacyMode != null) 'privacyMode': privacyMode,
         if (title != null) 'title': title,
         if (description != null) 'description': description,
         if (startAt != null) 'startAt': startAt.toUtc().toIso8601String(),

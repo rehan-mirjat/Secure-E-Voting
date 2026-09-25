@@ -3,8 +3,8 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 
 /**
  * Secures the user registration flow.
- * Flutter calls this immediately after creating the Firebase Auth account.
- * This guarantees we don't rely on race-condition-prone auth profile updates.
+ * Flutter calls this immediately after creating the Firebase Auth account or on Google Sign-In.
+ * Guarantees profile creation without failing on single-word names or empty last names.
  */
 export const completeRegistration = onCall(async (request) => {
   // 1. Verify authentication
@@ -18,16 +18,11 @@ export const completeRegistration = onCall(async (request) => {
   // 2. Extract and validate payload
   const { firstName, lastName } = request.data || {};
 
-  if (!firstName || !lastName || typeof firstName !== "string" || typeof lastName !== "string") {
-    throw new HttpsError("invalid-argument", "First name and last name are required strings.");
-  }
+  const rawFirst = (firstName && typeof firstName === "string") ? firstName.trim() : "";
+  const rawLast = (lastName && typeof lastName === "string") ? lastName.trim() : "";
 
-  const trimmedFirst = firstName.trim();
-  const trimmedLast = lastName.trim();
-
-  if (trimmedFirst.length === 0 || trimmedLast.length === 0) {
-    throw new HttpsError("invalid-argument", "First name and last name cannot be blank.");
-  }
+  const trimmedFirst = rawFirst.length > 0 ? rawFirst : (request.auth.token.name ? request.auth.token.name.split(" ")[0] : "Google");
+  const trimmedLast = rawLast.length > 0 ? rawLast : "User";
 
   if (trimmedFirst.length > 50 || trimmedLast.length > 50) {
     throw new HttpsError("invalid-argument", "First name and last name cannot exceed 50 characters.");
@@ -42,7 +37,7 @@ export const completeRegistration = onCall(async (request) => {
   try {
     const userSnap = await userRef.get();
     if (userSnap.exists) {
-      throw new HttpsError("already-exists", "User profile already exists for this account.");
+      return { status: "success", message: "User profile already exists." };
     }
 
     await userRef.set({
@@ -51,9 +46,9 @@ export const completeRegistration = onCall(async (request) => {
       displayName: displayName,
       firstName: trimmedFirst,
       lastName: trimmedLast,
-      photoUrl: null,
+      photoUrl: request.auth.token.picture || null,
       phoneNumber: null,
-      emailVerified: false,
+      emailVerified: request.auth.token.email_verified || false,
       twoFactorEnabled: false,
       status: "active",
       createdAt: FieldValue.serverTimestamp(),

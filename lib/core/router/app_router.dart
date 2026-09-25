@@ -8,13 +8,22 @@ import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/email_verification_screen.dart';
 import '../../features/auth/presentation/profile_screen.dart';
 import '../../features/organizations/presentation/organization_list_screen.dart';
+import '../../features/organizations/presentation/organization_settings_screen.dart';
+import '../../features/organizations/presentation/organization_audit_screen.dart';
+import '../../features/organizations/presentation/platform_organizations_screen.dart';
 import '../../features/organizations/presentation/membership_directory_screen.dart';
+import '../../features/departments/presentation/department_members_screen.dart';
 import '../../features/departments/presentation/departments_screen.dart';
 import '../../features/organizations/presentation/join_organization_screen.dart';
 import '../../features/organizations/presentation/create_organization_screen.dart';
 import '../../features/voting_events/presentation/dashboard/admin_event_dashboard_screen.dart';
 import '../../features/voting_events/presentation/builder/event_builder_screen.dart';
+import '../../features/voting_events/presentation/event_detail_screen.dart';
+import '../../features/voting_events/presentation/event_results_screen.dart';
+import '../../features/voting_events/presentation/event_monitoring_screen.dart';
 import '../../features/voting/presentation/cast_vote_screen.dart';
+import '../../features/voting/presentation/vote_receipt_screen.dart';
+import '../../features/voting/domain/vote_receipt.dart';
 import '../../services/auth_service.dart';
 import '../../services/firebase_service.dart';
 import '../../features/organizations/presentation/providers/organization_providers.dart';
@@ -30,8 +39,6 @@ final GlobalKey<NavigatorState> _shellNavigatorOrgsKey = GlobalKey<NavigatorStat
 final GlobalKey<NavigatorState> _shellNavigatorSettingsKey = GlobalKey<NavigatorState>(debugLabel: 'shellSettings');
 final GlobalKey<NavigatorState> _shellNavigatorAdminKey = GlobalKey<NavigatorState>(debugLabel: 'shellAdmin');
 
-/// We construct a Listenable that merges the auth stream, the user's email verification state,
-/// and the active organization context to proactively trigger GoRouter evaluations.
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
   bool _isAuthLoading = true;
@@ -49,8 +56,6 @@ class RouterNotifier extends ChangeNotifier {
         final user = next.value;
         _isAuth = user != null;
         
-        // EMULATOR BYPASS: Treat any authenticated user as verified if running on emulator.
-        // This is strictly gated by the environment and never applied in production.
         final bool isEmulator = FirebaseService.isEmulatorMode;
         _isEmailVerified = isEmulator ? true : (user?.emailVerified ?? false);
       }
@@ -94,9 +99,8 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       
       final location = state.matchedLocation;
       
-      // 0. Hold navigation during critical loading phases
       if (notifier.isAuthLoading) {
-         return '/splash'; // Wait for auth stream
+         return '/splash';
       }
 
       final isUnauthRoute = location == '/login' || location == '/register' || location == '/forgot-password';
@@ -104,42 +108,35 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       final isSplashRoute = location == '/splash';
       final isAdminRoute = location.startsWith('/admin');
 
-      // 1. Unauthenticated -> Force /login
       if (!isAuth) {
         return isUnauthRoute ? null : '/login';
       }
 
-      // 2. Authenticated but Email Unverified -> Force /verify-email
       if (!isVerified) {
         return isVerifyRoute ? null : '/verify-email';
       }
 
-      // 3. Authenticated + Verified visiting auth routes, splash, or root '/' -> Redirect to /home
       if (isUnauthRoute || isVerifyRoute || isSplashRoute || location == '/') {
         return '/home';
       }
 
-      // 4. Role Guard for /admin/* routes
       if (isAdminRoute) {
         if (notifier.isOrgLoading) {
-           return null; // Hold redirect until org role is known
+           return null;
         }
         if (!isAdmin) {
-          // Non-administrators reaching administrative routes are redirected to /home
           return '/home';
         }
       }
 
-      return null; // Allow navigation
+      return null;
     },
     routes: [
-      // --- SPLASH / LOADING ROUTE ---
       GoRoute(
         path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
 
-      // --- UNAUTHENTICATED ROUTES ---
       GoRoute(
         path: '/login',
         builder: (context, state) => LoginScreen(
@@ -164,21 +161,31 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => EmailVerificationScreen(
           onSignOut: () async {
             await ref.read(authServiceProvider).signOut();
-            // Router listener will handle redirect
           },
           onVerified: () {
             ref.invalidate(authStateChangesProvider);
           },
         ),
       ),
+      GoRoute(
+        path: '/receipt',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          final receipt = extra['receipt'] as VoteReceipt;
+          final eventTitle = extra['eventTitle'] as String?;
+          return VoteReceiptScreen(receipt: receipt, eventTitle: eventTitle);
+        },
+      ),
+      GoRoute(
+        path: '/platform/organizations',
+        builder: (context, state) => const PlatformOrganizationsScreen(),
+      ),
 
-      // --- AUTHENTICATED SHELL ROUTES ---
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return AppNavigationShell(navigationShell: navigationShell);
         },
         branches: [
-          // Branch 0: Home / Election Feed
           StatefulShellBranch(
             navigatorKey: _shellNavigatorHomeKey,
             routes: [
@@ -186,25 +193,29 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 path: '/home',
                 builder: (context, state) => const HomeScreen(),
               ),
-              // M5/M6 Controlled Future Stubs
               GoRoute(
                 path: '/elections/:eventId',
-                builder: (context, state) => Scaffold(body: Center(child: Text('Election Details M5 Stub - ${state.pathParameters['eventId']}'))),
+                builder: (context, state) => EventDetailScreen(
+                  eventId: state.pathParameters['eventId']!,
+                ),
                 routes: [
+                  GoRoute(
+                    path: 'results',
+                    builder: (context, state) => EventResultsScreen(
+                      eventId: state.pathParameters['eventId']!,
+                    ),
+                  ),
                    GoRoute(
                      path: 'vote',
-                     builder: (context, state) => CastVoteScreen(eventId: state.pathParameters['eventId']!),
+                     builder: (context, state) => CastVoteScreen(
+                       eventId: state.pathParameters['eventId']!,
+                     ),
                    ),
-                   GoRoute(
-                     path: 'results',
-                     builder: (context, state) => Scaffold(body: Center(child: Text('Results M6 Stub - ${state.pathParameters['eventId']}'))),
-                   ),
-                ]
+                ],
               ),
             ],
           ),
           
-          // Branch 1: Organizations (Includes Join/Create stubs/implementations)
           StatefulShellBranch(
             navigatorKey: _shellNavigatorOrgsKey,
             routes: [
@@ -213,6 +224,14 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => const OrganizationListScreen(),
                 routes: [
                   GoRoute(
+                    path: 'settings',
+                    builder: (context, state) => const OrganizationSettingsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'audit',
+                    builder: (context, state) => const OrganizationAuditScreen(),
+                  ),
+                  GoRoute(
                     path: 'join',
                     builder: (context, state) => const JoinOrganizationScreen(),
                   ),
@@ -220,7 +239,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                     path: 'create',
                     builder: (context, state) => CreateOrganizationScreen(
                       onOrganizationCreated: (orgId) {
-                         // Once created and selected, route the user dynamically
                          context.go('/orgs');
                       },
                       onCancelTap: () => context.go('/orgs'),
@@ -234,19 +252,24 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                     path: 'departments',
                     builder: (context, state) => const DepartmentsScreen(),
                   ),
-                ]
+                  GoRoute(
+                    path: 'departments/:id',
+                    builder: (context, state) => DepartmentMembersScreen(
+                      departmentId: state.pathParameters['id']!,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
 
-          // Branch 2: Settings / Profile
           StatefulShellBranch(
             navigatorKey: _shellNavigatorSettingsKey,
             routes: [
               GoRoute(
                 path: '/settings',
                 builder: (context, state) {
-                  final user = ref.read(authServiceProvider).currentUser;
+                  final user = ref.watch(authServiceProvider).currentUser;
                   if (user == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
                   return ProfileScreen(
                     uid: user.uid,
@@ -259,7 +282,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // Branch 3: Admin Dashboard (Guarded by redirect, conditionally rendered by shell)
           StatefulShellBranch(
             navigatorKey: _shellNavigatorAdminKey,
             routes: [
@@ -268,6 +290,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                 builder: (context, state) => const AdminEventDashboardScreen(),
                 routes: [
                   GoRoute(
+                    path: ':eventId/monitor',
+                    builder: (context, state) => EventMonitoringScreen(
+                      eventId: state.pathParameters['eventId']!,
+                    ),
+                  ),
+                  GoRoute(
                     path: 'new',
                     builder: (context, state) => const EventBuilderScreen(),
                   ),
@@ -275,16 +303,21 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                     path: ':eventId/edit',
                     builder: (context, state) => EventBuilderScreen(existingEventId: state.pathParameters['eventId']),
                   ),
-                  // Stubs for future choices/review mapping
                   GoRoute(
                     path: ':eventId/choices',
-                    builder: (context, state) => const Scaffold(body: Center(child: Text('Manage Choices Stub'))),
+                    builder: (context, state) => EventBuilderScreen(
+                      existingEventId: state.pathParameters['eventId'],
+                      initialStep: 3,
+                    ),
                   ),
                   GoRoute(
                     path: ':eventId/review',
-                    builder: (context, state) => const Scaffold(body: Center(child: Text('Review Stub'))),
+                    builder: (context, state) => EventBuilderScreen(
+                      existingEventId: state.pathParameters['eventId'],
+                      initialStep: 4,
+                    ),
                   ),
-                ]
+                ],
               ),
             ],
           ),

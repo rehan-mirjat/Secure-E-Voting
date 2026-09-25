@@ -8,6 +8,9 @@ import 'package:secure_e_voting/services/auth_service.dart';
 
 class MockOrganizationRepository implements OrganizationRepository {
   @override
+  void clearCache() {}
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override

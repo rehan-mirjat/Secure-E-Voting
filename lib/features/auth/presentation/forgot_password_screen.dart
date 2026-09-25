@@ -93,7 +93,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       onMobileBackTap: widget.onBackToLoginTap,
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+          padding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.sizeOf(context).width < 380 ? 12 : 24,
+            vertical: MediaQuery.sizeOf(context).height < 700 ? 20 : 40,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: Card(
@@ -103,7 +106,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 side: const BorderSide(color: AppTheme.borderLight),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(40),
+                padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 420 ? 20 : 36),
                 child: Form(
                   key: _formKey,
                   child: Column(

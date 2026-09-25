@@ -23,8 +23,11 @@ service cloud.firestore {
 
     function isOrgMember(orgId) {
       let membershipId = orgId + '_' + request.auth.uid;
-      return exists(/databases/$(database)/documents/organizationMembers/$(membershipId)) &&
-      getMembership(orgId).status == 'active';
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/organizationMembers/$(membershipId))
+        && getMembership(orgId).status == 'active'
+        && getMembership(orgId).organizationId == orgId
+        && getMembership(orgId).userId == request.auth.uid;
     }
 
     function isOrgAdmin(orgId) {
@@ -32,6 +35,20 @@ service cloud.firestore {
         getMembership(orgId).role == 'owner' ||
         getMembership(orgId).role == 'admin'
       );
+    }
+
+    function isOrgOwner(orgId) {
+      return isOrgMember(orgId) && getMembership(orgId).role == 'owner';
+    }
+
+    function isEventClosed(eventId) {
+      return exists(/databases/$(database)/documents/votingEvents/$(eventId))
+        && get(/databases/$(database)/documents/votingEvents/$(eventId)).data.status in ["CLOSED", "ARCHIVED"];
+    }
+
+    // SRS §7.2: Draft is admin-only. CANCELLED is not a member-facing status.
+    function isMemberVisibleEventStatus(status) {
+      return status in ["SCHEDULED", "ACTIVE", "CLOSED", "ARCHIVED"];
     }
 
     // -------------------------------------------------------------------------
@@ -151,7 +168,7 @@ service cloud.firestore {
         isSuperAdmin() ||
         (
           isOrgMember(resource.data.organizationId) && (
-            (resource.data.status in ["ACTIVE", "CLOSED"]) ||
+            isMemberVisibleEventStatus(resource.data.status) ||
             isOrgAdmin(resource.data.organizationId)
           )
         )
@@ -165,7 +182,7 @@ service cloud.firestore {
         isSuperAdmin() ||
         (
           isOrgMember(resource.data.organizationId) && (
-            (get(/databases/$(database)/documents/votingEvents/$(resource.data.votingEventId)).data.status in ["ACTIVE", "CLOSED"]) ||
+            isMemberVisibleEventStatus(get(/databases/$(database)/documents/votingEvents/$(resource.data.votingEventId)).data.status) ||
             isOrgAdmin(resource.data.organizationId)
           )
         )
@@ -179,7 +196,7 @@ service cloud.firestore {
         isSuperAdmin() ||
         (
           isOrgMember(resource.data.organizationId) && (
-            (get(/databases/$(database)/documents/votingEvents/$(resource.data.votingEventId)).data.status in ["ACTIVE", "CLOSED"]) ||
+            isMemberVisibleEventStatus(get(/databases/$(database)/documents/votingEvents/$(resource.data.votingEventId)).data.status) ||
             isOrgAdmin(resource.data.organizationId)
           )
         )
@@ -209,11 +226,25 @@ service cloud.firestore {
     // Previously denied to everyone, which breaks the "Vote Success /
     // Receipt" screen (SRS §28).
     match /voteReceipts/{receiptId} {
-      allow read: if isSignedIn() && (
-        resource.data.userId == request.auth.uid ||
-        isSuperAdmin()
-      );
+      allow read: if isSelf(resource.data.userId);
       allow write: if false; // Server-only (generateReceipt Cloud Function)
+    }
+
+    // Aggregated tallies are available only after the event is closed.
+    // Members additionally require publication; admins may preview closed results.
+    match /eventResults/{eventId} {
+      allow read: if isSignedIn() && (
+        (
+          isOrgAdmin(resource.data.organizationId) &&
+          isEventClosed(eventId)
+        ) ||
+        (
+          isOrgMember(resource.data.organizationId) &&
+          resource.data.published == true &&
+          isEventClosed(eventId)
+        )
+      );
+      allow write: if false;
     }
 
     // -------------------------------------------------------------------------

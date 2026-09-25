@@ -55,3 +55,8 @@ export * from "./voting_events/createPollOption";
 export * from "./voting_events/updatePollOption";
 export * from "./voting_events/deletePollOption";
 export * from "./voting/castVote";
+export * from "./voting/calculateResults";
+export * from "./voting/publishResults";
+export * from "./voting/getEventMonitoring";
+export * from "./platform/listOrganizations";
+export * from "./platform/reviewOrganization";

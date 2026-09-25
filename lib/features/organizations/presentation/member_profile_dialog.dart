@@ -74,6 +74,7 @@ class _MemberProfileDialogState extends ConsumerState<MemberProfileDialog> {
     final repo = ref.read(organizationRepositoryProvider);
 
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: Row(
         children: [
           CircleAvatar(
@@ -86,7 +87,7 @@ class _MemberProfileDialogState extends ConsumerState<MemberProfileDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(displayName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                Text(email, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+                Text(email, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
               ],
             ),
           ),
@@ -165,7 +166,7 @@ class _MemberProfileDialogState extends ConsumerState<MemberProfileDialog> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
-          Text(value, style: const TextStyle(color: AppTheme.textSecondary)),
+          Expanded(child: Text(value, textAlign: TextAlign.end, softWrap: true, style: const TextStyle(color: AppTheme.textSecondary))),
         ],
       ),
     );

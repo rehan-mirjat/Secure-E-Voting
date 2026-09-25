@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/layout/responsive.dart';
 import '../../../services/auth_service.dart';
 import '../../voting_events/data/candidate_repository.dart';
 import '../../voting_events/data/poll_option_repository.dart';
@@ -52,24 +53,36 @@ class _CastVoteScreenState extends ConsumerState<CastVoteScreen> {
     }
 
     // Show Confirmation Dialog
+    final isIdentifiable = event.privacyMode == PrivacyMode.identifiable;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        title: const Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 4,
           children: [
             Icon(Icons.how_to_vote, color: AppTheme.primaryBlue),
-            SizedBox(width: 8),
             Text('Confirm Ballot Submission'),
           ],
         ),
-        content: Column(
+        content: SingleChildScrollView(
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Are you sure you want to submit your ballot? This action cannot be undone and your vote is permanent.',
-              style: TextStyle(fontSize: 14),
-            ),
+            if (isIdentifiable)
+              const Text(
+                'This voting event records your selected choice against your account. Your selection will be associated with your identity and cannot be changed after submission.',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.deepOrange),
+              )
+            else
+              const Text(
+                'The ballot is anonymous and cannot be changed after submission.',
+                style: TextStyle(fontSize: 14),
+              ),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -91,6 +104,7 @@ class _CastVoteScreenState extends ConsumerState<CastVoteScreen> {
               ),
             ),
           ],
+          ),
         ),
         actions: [
           TextButton(
@@ -194,13 +208,12 @@ class _CastVoteScreenState extends ConsumerState<CastVoteScreen> {
   }
 
   Widget _buildAlreadyVotedView(BuildContext context, VotingEvent event, String userId) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    return SingleChildScrollView(
+      padding: ResponsiveLayout.pagePadding(context),
+      child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 500),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.check_circle_outline, size: 72, color: AppTheme.success),
               const SizedBox(height: 20),
@@ -264,7 +277,7 @@ class _CastVoteScreenState extends ConsumerState<CastVoteScreen> {
         now.isBefore(event.endAt);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: ResponsiveLayout.pagePadding(context),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
@@ -278,7 +291,11 @@ class _CastVoteScreenState extends ConsumerState<CastVoteScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
+                      Wrap(
+                        alignment: WrapAlignment.spaceBetween,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -295,12 +312,16 @@ class _CastVoteScreenState extends ConsumerState<CastVoteScreen> {
                               ),
                             ),
                           ),
-                          const Spacer(),
-                          const Icon(Icons.timer_outlined, size: 16, color: AppTheme.textSecondary),
-                          const SizedBox(width: 4),
-                          Text(
-                            _getTimeRemaining(event.endAt),
-                            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.timer_outlined, size: 16, color: AppTheme.textSecondary),
+                              const SizedBox(width: 4),
+                              Text(
+                                _getTimeRemaining(event.endAt),
+                                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, fontWeight: FontWeight.w600),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -321,6 +342,25 @@ class _CastVoteScreenState extends ConsumerState<CastVoteScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+
+              if (event.privacyMode == PrivacyMode.identifiable)
+                Card(
+                  color: Theme.of(context).colorScheme.tertiaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(children: [
+                      const Icon(Icons.visibility_outlined),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Identifiable ballot: your selected choice will be associated with your account.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+              if (event.privacyMode == PrivacyMode.identifiable) const SizedBox(height: 16),
 
               if (_errorMessage != null) ...[
                 Container(

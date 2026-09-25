@@ -1,16 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import * as crypto from "crypto";
-
-function getJoinCodeSecret(): string {
-  if (process.env.JOIN_CODE_SECRET) {
-    return process.env.JOIN_CODE_SECRET;
-  }
-  if (process.env.FUNCTIONS_EMULATOR === "true" || process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-    return "emulator-secret-key-98765-do-not-use-in-prod";
-  }
-  throw new HttpsError("internal", "Server configuration error: JOIN_CODE_SECRET is not configured.");
-}
+import { getJoinCodeSecret, JOIN_CODE_SECRET } from "../utils/joinCodeSecret";
 
 function generateRandomCode(): string {
   // 12-character high-entropy CSPRNG code formatted as JOIN-XXXX-XXXX-XXXX
@@ -29,7 +20,7 @@ function computeCodeHmac(rawCode: string): string {
   return crypto.createHmac("sha256", secret).update(normalized).digest("hex");
 }
 
-export const createJoiningCode = onCall(async (request) => {
+export const createJoiningCode = onCall({ secrets: [JOIN_CODE_SECRET] }, async (request) => {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }

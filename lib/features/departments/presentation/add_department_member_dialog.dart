@@ -52,6 +52,8 @@ class _AddDepartmentMemberDialogState extends ConsumerState<AddDepartmentMemberD
 
   @override
   Widget build(BuildContext context) {
+    final screenSize = MediaQuery.sizeOf(context);
+    final compact = screenSize.width < 440;
     final availableMembers = widget.allMembers.where((m) {
       final isNotInDept = m['departmentId'] != widget.departmentId;
       final isActive = m['status'] == 'active';
@@ -62,10 +64,11 @@ class _AddDepartmentMemberDialogState extends ConsumerState<AddDepartmentMemberD
     }).toList();
 
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Add Member to Department'),
       content: SizedBox(
-        width: 600,
-        height: 500,
+        width: (screenSize.width - 80).clamp(200.0, 560.0).toDouble(),
+        height: (screenSize.height * 0.58).clamp(240.0, 500.0).toDouble(),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -98,13 +101,16 @@ class _AddDepartmentMemberDialogState extends ConsumerState<AddDepartmentMemberD
                           ),
                           title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
                           subtitle: Text('$email${currentDept != null ? ' • currently in $currentDept' : ''}', style: const TextStyle(color: AppTheme.textSecondary)),
-                          trailing: ElevatedButton(
-                            onPressed: _isLoading ? null : () => _assignMember(targetUid),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            ),
-                            child: const Text('Add'),
-                          ),
+                          trailing: compact
+                              ? IconButton.filledTonal(
+                                  tooltip: 'Add member',
+                                  onPressed: _isLoading ? null : () => _assignMember(targetUid),
+                                  icon: const Icon(Icons.person_add_alt_1_rounded),
+                                )
+                              : ElevatedButton(
+                                  onPressed: _isLoading ? null : () => _assignMember(targetUid),
+                                  child: const Text('Add member'),
+                                ),
                         );
                       },
                     ),

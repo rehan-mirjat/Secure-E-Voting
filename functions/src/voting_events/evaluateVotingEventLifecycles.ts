@@ -1,14 +1,13 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 
 /**
  * Server-Controlled Automatic Lifecycle Evaluator.
  * Transition SCHEDULED -> ACTIVE (if startAt <= trustedNow)
  * Transition ACTIVE -> CLOSED (if endAt <= trustedNow)
- * Can be called periodically by Cloud Scheduler or invoked safely via Callable.
- * Idempotent with transactional precondition guards.
+ * Runs periodically under Cloud Scheduler with transactional precondition guards.
  */
-export const evaluateVotingEventLifecycles = onCall(async (request) => {
+export const evaluateVotingEventLifecycles = onSchedule("every 1 minutes", async () => {
   const db = getFirestore();
   const trustedNow = Timestamp.now();
 
@@ -26,13 +25,16 @@ export const evaluateVotingEventLifecycles = onCall(async (request) => {
     for (const eventDoc of scheduledSnap.docs) {
       await db.runTransaction(async (transaction) => {
         const freshSnap = await transaction.get(eventDoc.ref);
-        if (freshSnap.exists && freshSnap.data()?.status === "SCHEDULED") {
-          transaction.update(eventDoc.ref, {
-            status: "ACTIVE",
-            updatedAt: FieldValue.serverTimestamp(),
-          });
-          activatedCount++;
-        }
+        if (!freshSnap.exists || freshSnap.data()?.status !== "SCHEDULED") return;
+        const organizationId = freshSnap.data()?.organizationId as string | undefined;
+        if (!organizationId) return;
+        const organizationSnap = await transaction.get(db.collection("organizations").doc(organizationId));
+        if (!organizationSnap.exists || !["verified", "active"].includes(organizationSnap.data()?.status)) return;
+        transaction.update(eventDoc.ref, {
+          status: "ACTIVE",
+          updatedAt: FieldValue.serverTimestamp(),
+        });
+        activatedCount++;
       });
     }
 
@@ -74,13 +76,12 @@ export const evaluateVotingEventLifecycles = onCall(async (request) => {
       });
     }
 
-    return {
-      status: "success",
-      activatedCount: activatedCount,
-      closedCount: closedCount,
-    };
-  } catch (error: any) {
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", "Failed to evaluate voting event lifecycles.", error);
+    console.info("Voting event lifecycle evaluation completed.", {
+      activatedCount,
+      closedCount,
+    });
+  } catch (error) {
+    console.error("Failed to evaluate voting event lifecycles.", error);
+    throw error;
   }
 });

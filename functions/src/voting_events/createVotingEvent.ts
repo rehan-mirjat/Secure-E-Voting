@@ -13,7 +13,7 @@ export const createVotingEvent = onCall(async (request) => {
   const allowedKeys = [
     "organizationId", "title", "description", "votingType",
     "eligibilityType", "eligibilityDepartmentIds", "eligibilityUserIds",
-    "startAt", "endAt"
+    "startAt", "endAt", "privacyMode"
   ];
   for (const key of Object.keys(data)) {
     if (!allowedKeys.includes(key)) {
@@ -24,7 +24,7 @@ export const createVotingEvent = onCall(async (request) => {
   const {
     organizationId, title, description, votingType,
     eligibilityType, eligibilityDepartmentIds, eligibilityUserIds,
-    startAt, endAt
+    startAt, endAt, privacyMode
   } = data;
 
   if (!organizationId || typeof organizationId !== "string" || organizationId.trim().length === 0) {
@@ -76,19 +76,30 @@ export const createVotingEvent = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Voting window (endAt - startAt) must be at least 5 minutes.");
   }
 
+  const cleanPrivacyMode = privacyMode && typeof privacyMode === "string" ? privacyMode.trim().toUpperCase() : "ANONYMOUS";
+  if (!["ANONYMOUS", "IDENTIFIABLE"].includes(cleanPrivacyMode)) {
+    throw new HttpsError("invalid-argument", "Invalid privacyMode.");
+  }
+
   const db = getFirestore();
 
   // Validate Caller Membership & Role
   const callerMemberRef = db.collection("organizationMembers").doc(`${organizationId}_${uid}`);
   const callerMemberSnap = await callerMemberRef.get();
 
-  if (!callerMemberSnap.exists || callerMemberSnap.data()?.status !== "active") {
+  if (!callerMemberSnap.exists || callerMemberSnap.data()?.status !== "active" ||
+      callerMemberSnap.data()?.organizationId !== organizationId || callerMemberSnap.data()?.userId !== uid) {
     throw new HttpsError("permission-denied", "You are not an active member of this organization.");
   }
 
   const callerRole = callerMemberSnap.data()?.role;
   if (callerRole !== "owner" && callerRole !== "admin") {
     throw new HttpsError("permission-denied", "Only Organization Owners or Admins can create voting events.");
+  }
+
+  const organizationSnap = await db.collection("organizations").doc(organizationId).get();
+  if (!organizationSnap.exists || !["verified", "active"].includes(organizationSnap.data()?.status)) {
+    throw new HttpsError("failed-precondition", "The organization must be verified before creating voting events.");
   }
 
   // Validate Eligibility References & Deterministic Arrays
@@ -146,7 +157,7 @@ export const createVotingEvent = onCall(async (request) => {
         title: title.trim(),
         description: cleanDescription,
         votingType: votingType,
-        privacyMode: "ANONYMOUS", // Forced V1 Privacy Contract
+        privacyMode: cleanPrivacyMode, // Dynamically accept ANONYMOUS or IDENTIFIABLE
         maxSelections: 1,        // Forced V1 Single Selection Contract
         eligibilityType: eligibilityType,
         eligibilityDepartmentIds: eligibilityType === "SELECTED_DEPARTMENTS" ? eligibilityDepartmentIds : [],
@@ -204,7 +215,7 @@ export const createVotingEvent = onCall(async (request) => {
         metadata: {
           title: title.trim(),
           votingType: votingType,
-          privacyMode: "ANONYMOUS",
+          privacyMode: cleanPrivacyMode,
           eligibilityType: eligibilityType,
         },
         timestamp: FieldValue.serverTimestamp(),
@@ -214,6 +225,10 @@ export const createVotingEvent = onCall(async (request) => {
     return { status: "success", eventId: eventId };
   } catch (error: any) {
     if (error instanceof HttpsError) throw error;
-    throw new HttpsError("internal", "Failed to create voting event.", error);
+    console.error("createVotingEvent failed to save the draft", error);
+    const details = process.env.FUNCTIONS_EMULATOR === "true"
+      ? { message: error instanceof Error ? error.message : String(error) }
+      : undefined;
+    throw new HttpsError("internal", "Failed to create voting event.", details);
   }
 });

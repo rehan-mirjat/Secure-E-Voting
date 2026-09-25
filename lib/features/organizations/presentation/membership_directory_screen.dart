@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../../core/layout/responsive.dart';
+import '../../../core/widgets/empty_view.dart';
+import '../../../core/widgets/error_view.dart';
+import '../../../core/widgets/loading_view.dart';
 import '../domain/organization_enums.dart';
 import '../data/organization_repository.dart';
 import 'invite_member_dialog.dart';
@@ -36,171 +40,179 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
     super.dispose();
   }
 
+  Widget _directoryHeading(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Member Directory', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          Text('Manage organization members, roles, and status.', style: Theme.of(context).textTheme.bodyMedium),
+        ],
+      );
+
+  Widget _inviteButton(BuildContext context, String orgId, String orgName, OrganizationRole role) =>
+      ElevatedButton.icon(
+        onPressed: () => showDialog(
+          context: context,
+          builder: (ctx) => InviteMemberDialog(
+            organizationId: orgId,
+            organizationName: orgName,
+            isOwner: role == OrganizationRole.owner,
+          ),
+        ),
+        icon: const Icon(Icons.person_add_alt_1_rounded),
+        label: const Text('Invite member'),
+      );
+
+  Widget _memberSearchField() => TextField(
+        controller: _searchController,
+        focusNode: _searchFocusNode,
+        textInputAction: TextInputAction.search,
+        decoration: const InputDecoration(
+          hintText: 'Search members by name or email',
+          prefixIcon: Icon(Icons.search_rounded),
+        ),
+        onChanged: (value) => setState(() => _searchQuery = value.trim().toLowerCase()),
+      );
+
+  Widget _roleFilter(BuildContext context) => DropdownButtonFormField<String>(
+        initialValue: _selectedRoleFilter,
+        decoration: const InputDecoration(labelText: 'Filter by role'),
+        isExpanded: true,
+        items: const [
+          DropdownMenuItem(value: 'all', child: Text('All roles')),
+          DropdownMenuItem(value: 'owner', child: Text('Owners')),
+          DropdownMenuItem(value: 'admin', child: Text('Admins')),
+          DropdownMenuItem(value: 'member', child: Text('Members')),
+        ],
+        onChanged: (value) {
+          if (value != null) setState(() => _selectedRoleFilter = value);
+        },
+      );
+
   @override
   Widget build(BuildContext context) {
     final activeContextState = ref.watch(activeOrganizationContextProvider);
-    final orgContext = activeContextState.valueOrNull?.context;
 
-    if (orgContext == null) {
-      return const Scaffold(
-        body: Center(child: Text('No active organization selected.')),
-      );
-    }
+    return activeContextState.when(
+      loading: () => Material(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: const LoadingView(message: 'Restoring active organization context...'),
+      ),
+      error: (err, stack) => Material(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: ErrorView(
+          message: 'Failed to load organization context: $err',
+          onRetry: () => ref.invalidate(activeOrganizationContextProvider),
+        ),
+      ),
+      data: (state) {
+        final compact = ResponsiveLayout.isCompact(context);
+        final orgContext = state.context;
 
-    final orgId = orgContext.organization.id;
-    final callerRole = orgContext.member.role;
-    final membersAsync = ref.watch(organizationMembersDirectoryProvider(orgId));
+        if (orgContext == null) {
+          return Material(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: const EmptyView(
+              icon: Icons.corporate_fare_outlined,
+              title: 'No Active Organization Selected',
+              message: 'Please select an organization context to view the member directory.',
+            ),
+          );
+        }
 
-    return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.slash): () => _searchFocusNode.requestFocus(),
-      },
-      child: FocusScope(
-        autofocus: true,
-        child: Scaffold(
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(32, 32, 32, 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Member Directory',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.secondaryNavy,
+        final orgId = orgContext.organization.id;
+        final callerRole = orgContext.member.role;
+        final membersAsync = ref.watch(organizationMembersDirectoryProvider(orgId));
+
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.slash): () => _searchFocusNode.requestFocus(),
+          },
+          child: FocusScope(
+            child: Material(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(compact ? 16 : 32, compact ? 20 : 32, compact ? 16 : 32, 16),
+                    child: compact
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              _directoryHeading(context),
+                              if (callerRole == OrganizationRole.owner || callerRole == OrganizationRole.admin) ...[
+                                const SizedBox(height: 14),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: _inviteButton(context, orgId, orgContext.organization.name, callerRole),
                                 ),
+                              ],
+                            ],
+                          )
+                        : Row(
+                            children: [
+                              Expanded(child: _directoryHeading(context)),
+                              if (callerRole == OrganizationRole.owner || callerRole == OrganizationRole.admin)
+                                _inviteButton(context, orgId, orgContext.organization.name, callerRole),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Manage organization members, roles, and status.',
-                            style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (callerRole == OrganizationRole.owner || callerRole == OrganizationRole.admin)
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (ctx) => InviteMemberDialog(
-                              organizationId: orgId,
-                              organizationName: orgContext.organization.name,
-                              isOwner: callerRole == OrganizationRole.owner,
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.person_add),
-                        label: const Text('Invite Member'),
-                      ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: membersAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (err, stack) => Center(
-                    child: Text('Error loading directory: ${err.toString()}', style: const TextStyle(color: AppTheme.error)),
                   ),
-                  data: (members) {
-                    final filtered = members.where((m) {
-                      final name = (m['displayName'] as String? ?? '').toLowerCase();
-                      final email = (m['email'] as String? ?? '').toLowerCase();
-                      final role = (m['role'] as String? ?? '').toLowerCase();
+                  Expanded(
+                    child: membersAsync.when(
+                      loading: () => const LoadingView(message: 'Loading member directory...'),
+                      error: (err, stack) => ErrorView(
+                        message: 'Error loading directory: $err',
+                        onRetry: () => ref.invalidate(organizationMembersDirectoryProvider(orgId)),
+                      ),
+                      data: (members) {
+                        final filtered = members.where((m) {
+                          final name = (m['displayName'] as String? ?? '').toLowerCase();
+                          final email = (m['email'] as String? ?? '').toLowerCase();
+                          final role = (m['role'] as String? ?? '').toLowerCase();
 
-                      final matchesQuery = _searchQuery.isEmpty || name.contains(_searchQuery) || email.contains(_searchQuery);
-                      final matchesRole = _selectedRoleFilter == 'all' || role == _selectedRoleFilter;
+                          final matchesQuery = _searchQuery.isEmpty || name.contains(_searchQuery) || email.contains(_searchQuery);
+                          final matchesRole = _selectedRoleFilter == 'all' || role == _selectedRoleFilter;
 
-                      return matchesQuery && matchesRole;
-                    }).toList();
+                          return matchesQuery && matchesRole;
+                        }).toList();
 
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1000),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: TextField(
-                                      controller: _searchController,
-                                      focusNode: _searchFocusNode,
-                                      textInputAction: TextInputAction.search,
-                                      decoration: InputDecoration(
-                                        hintText: 'Search members by name or email... (Press /)',
-                                        prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
-                                        filled: true,
-                                        fillColor: Colors.white,
-                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: const BorderSide(color: AppTheme.borderLight),
-                                        ),
-                                        enabledBorder: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                          borderSide: const BorderSide(color: AppTheme.borderLight),
-                                        ),
-                                      ),
-                                      onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    flex: 1,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: AppTheme.borderLight),
-                                      ),
-                                      child: DropdownButtonHideUnderline(
-                                        child: DropdownButton<String>(
-                                          isExpanded: true,
-                                          value: _selectedRoleFilter,
-                                          icon: const Icon(Icons.keyboard_arrow_down, color: AppTheme.textSecondary),
-                                          items: const [
-                                            DropdownMenuItem(value: 'all', child: Text('All Roles')),
-                                            DropdownMenuItem(value: 'owner', child: Text('Owners')),
-                                            DropdownMenuItem(value: 'admin', child: Text('Admins')),
-                                            DropdownMenuItem(value: 'member', child: Text('Members')),
+                        return Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1000),
+                            child: Column(
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 32, vertical: 12),
+                                  child: compact
+                                      ? Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [_memberSearchField(), const SizedBox(height: 10), _roleFilter(context)],
+                                        )
+                                      : Row(
+                                          children: [
+                                            Expanded(flex: 3, child: _memberSearchField()),
+                                            const SizedBox(width: 16),
+                                            Expanded(flex: 1, child: _roleFilter(context)),
                                           ],
-                                          onChanged: (val) {
-                                            if (val != null) setState(() => _selectedRoleFilter = val);
-                                          },
                                         ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              child: RefreshIndicator(
-                                onRefresh: () async {
-                                  ref.invalidate(organizationMembersDirectoryProvider(orgId));
-                                  try {
-                                    await ref.read(organizationMembersDirectoryProvider(orgId).future);
-                                  } catch (_) {}
-                                },
-                                child: SingleChildScrollView(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
+                                ),
+                                Expanded(
+                                  child: RefreshIndicator(
+                                    onRefresh: () async {
+                                      ref.invalidate(organizationMembersDirectoryProvider(orgId));
+                                      try {
+                                        await ref.read(organizationMembersDirectoryProvider(orgId).future);
+                                      } catch (_) {}
+                                    },
+                                    child: SingleChildScrollView(
+                                      physics: const AlwaysScrollableScrollPhysics(),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
                                       if (callerRole == OrganizationRole.owner || callerRole == OrganizationRole.admin)
                                         Padding(
-                                          padding: const EdgeInsets.fromLTRB(32, 0, 32, 24),
+                                          padding: EdgeInsets.fromLTRB(compact ? 16 : 32, 0, compact ? 16 : 32, 20),
                                           child: PendingInvitationsWidget(
                                             organizationId: orgId,
                                             isOwner: callerRole == OrganizationRole.owner,
@@ -216,7 +228,7 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
                                         ListView.builder(
                                           shrinkWrap: true,
                                           physics: const NeverScrollableScrollPhysics(),
-                                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
+                                          padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 32, vertical: 8),
                                           itemCount: filtered.length,
                                           itemBuilder: (context, index) {
                                             final member = filtered[index];
@@ -250,19 +262,19 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
                                                         );
                                                       }
                                                     : null,
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(20),
+                                              child: Padding(
+                                                  padding: EdgeInsets.all(compact ? 12 : 20),
                                                   child: Row(
                                                     children: [
                                                       CircleAvatar(
-                                                        radius: 24,
+                                                        radius: compact ? 20 : 24,
                                                         backgroundColor: isInactive ? Colors.grey.shade300 : AppTheme.primaryBlue.withValues(alpha: 0.1),
                                                         child: Text(
                                                           name.isNotEmpty ? name[0].toUpperCase() : 'U',
                                                           style: TextStyle(color: isInactive ? Colors.grey.shade600 : AppTheme.primaryBlue, fontWeight: FontWeight.bold, fontSize: 18),
                                                         ),
                                                       ),
-                                                      const SizedBox(width: 20),
+                                                      SizedBox(width: compact ? 12 : 20),
                                                       Expanded(
                                                         child: Column(
                                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +293,10 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
                                                               children: [
                                                                 const Icon(Icons.email_outlined, size: 14, color: AppTheme.textSecondary),
                                                                 const SizedBox(width: 6),
-                                                                Text(email, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                                                                Flexible(
+                                                                  child: Text(email, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                                                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                                                                ),
                                                               ],
                                                             ),
                                                             if (deptName != null && deptName.isNotEmpty) ...[
@@ -290,7 +305,10 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
                                                                 children: [
                                                                   const Icon(Icons.domain_outlined, size: 14, color: AppTheme.textSecondary),
                                                                   const SizedBox(width: 6),
-                                                                  Text(deptName, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                                                                  Flexible(
+                                                                    child: Text(deptName, maxLines: 1, overflow: TextOverflow.ellipsis,
+                                                                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                                                                  ),
                                                                 ],
                                                               ),
                                                             ],
@@ -325,7 +343,7 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
                                                         ],
                                                       ),
                                                       if (callerRole == OrganizationRole.owner || callerRole == OrganizationRole.admin) ...[
-                                                        const SizedBox(width: 16),
+                                                        SizedBox(width: compact ? 6 : 16),
                                                         const Icon(Icons.chevron_right, color: AppTheme.borderLight),
                                                       ],
                                                     ],
@@ -352,5 +370,7 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
         ),
       ),
     );
-  }
+  },
+);
+}
 }

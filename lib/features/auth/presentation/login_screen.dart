@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/utils/error_utils.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/widgets/google_g_logo.dart';
 import '../../../services/auth_service.dart';
 import 'email_verification_screen.dart';
 import 'widgets/auth_split_layout.dart';
@@ -137,7 +138,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return AuthSplitLayout(
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 48),
+          padding: EdgeInsets.symmetric(
+            horizontal: MediaQuery.sizeOf(context).width < 380 ? 12 : 24,
+            vertical: MediaQuery.sizeOf(context).height < 700 ? 20 : 40,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: Card(
@@ -147,7 +151,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 side: const BorderSide(color: AppTheme.borderLight),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(40),
+                padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 420 ? 20 : 36),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -280,11 +284,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 24),
                       OutlinedButton.icon(
                         onPressed: _isLoading ? null : _googleSignIn,
-                        icon: Image.network(
-                          'https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg',
-                          height: 18,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.g_mobiledata_rounded, size: 24),
-                        ),
+                        icon: const GoogleGLogo(size: 18),
                         label: const Text('Continue with Google', style: TextStyle(color: AppTheme.secondaryNavy)),
                       ),
                       const SizedBox(height: 32),

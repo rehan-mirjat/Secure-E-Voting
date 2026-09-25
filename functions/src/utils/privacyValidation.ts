@@ -53,6 +53,50 @@ export function validateAnonymousBallotPayload(data: Record<string, any>): void 
 }
 
 /**
+ * Validates that an identifiable ballot payload CONTAINS voter identity and matches
+ * the EXACT approved discriminated schema for V1 candidate or poll ballots.
+ */
+export function validateIdentifiableBallotPayload(data: Record<string, any>, expectedUserId: string): void {
+  if (!data || typeof data !== "object") {
+    throw new HttpsError("invalid-argument", "Ballot payload must be a valid object.");
+  }
+
+  const keys = Object.keys(data);
+
+  // Strict Schema Whitelisting
+  const candidateBallotKeys = ["organizationId", "votingEventId", "candidateId", "castAt", "userId"];
+  const pollBallotKeys = ["organizationId", "votingEventId", "pollOptionId", "castAt", "userId"];
+
+  const isCandidateBallot = "candidateId" in data && !("pollOptionId" in data);
+  const isPollBallot = "pollOptionId" in data && !("candidateId" in data);
+
+  if (!isCandidateBallot && !isPollBallot) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Invalid ballot schema. Must contain either 'candidateId' or 'pollOptionId', never both or neither."
+    );
+  }
+
+  if (data.userId !== expectedUserId) {
+    throw new HttpsError(
+      "permission-denied",
+      "Voter identity mismatch in identifiable ballot payload."
+    );
+  }
+
+  const allowedKeys = isCandidateBallot ? candidateBallotKeys : pollBallotKeys;
+
+  for (const key of keys) {
+    if (!allowedKeys.includes(key)) {
+      throw new HttpsError(
+        "invalid-argument",
+        `Unpermitted field '${key}' in identifiable ballot payload. Allowed fields: ${JSON.stringify(allowedKeys)}`
+      );
+    }
+  }
+}
+
+/**
  * Validates that a participation payload contains ONLY participation data and ZERO choice metadata.
  */
 export function validateParticipationPayload(data: Record<string, any>): void {

@@ -31,8 +31,8 @@ class FirebaseService {
       return;
     }
 
-    // 2. Evaluate explicit compile-time flag (Defaults to FALSE for safety)
-    // Developers must explicitly pass --dart-define=USE_EMULATORS=true to activate.
+    // 2. Evaluate explicit compile-time flag (Defaults to FALSE for production)
+    // Developers must explicitly pass --dart-define=USE_EMULATORS=true to test locally.
     // For unit testing, we allow an explicit override.
     final bool useEmulator = forceEmulatorForTest ?? const bool.fromEnvironment('USE_EMULATORS', defaultValue: false);
     

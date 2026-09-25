@@ -11,11 +11,15 @@ class OrganizationContextSwitcher extends ConsumerWidget {
   void _showSwitcherModal(BuildContext context, WidgetRef ref) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return Consumer(
+        return FractionallySizedBox(
+          heightFactor: 0.82,
+          child: Consumer(
           builder: (context, ref, child) {
             final membershipsAsync = ref.watch(userMembershipsProvider);
             final orgsAsync = ref.watch(userOrganizationsProvider);
@@ -111,6 +115,7 @@ class OrganizationContextSwitcher extends ConsumerWidget {
               ),
             );
           },
+          ),
         );
       },
     );
@@ -133,7 +138,7 @@ class OrganizationContextSwitcher extends ConsumerWidget {
         if (contextObj == null) {
           return Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppTheme.borderLight),
               boxShadow: [
@@ -144,20 +149,23 @@ class OrganizationContextSwitcher extends ConsumerWidget {
                 ),
               ],
             ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () => _showSwitcherModal(context, ref),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.folder_open_outlined, size: 18, color: AppTheme.primaryBlue),
-                    SizedBox(width: 8),
-                    Text('Select Organization', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.secondaryNavy)),
-                    SizedBox(width: 6),
-                    Icon(Icons.keyboard_arrow_down, size: 18, color: AppTheme.textSecondary),
-                  ],
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: () => _showSwitcherModal(context, ref),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.folder_open_outlined, size: 18, color: AppTheme.primaryBlue),
+                      SizedBox(width: 8),
+                      Text('Select Organization', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.secondaryNavy)),
+                      SizedBox(width: 6),
+                      Icon(Icons.keyboard_arrow_down, size: 18, color: AppTheme.textSecondary),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -166,7 +174,7 @@ class OrganizationContextSwitcher extends ConsumerWidget {
 
         return Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: AppTheme.borderLight),
             boxShadow: [
@@ -177,35 +185,40 @@ class OrganizationContextSwitcher extends ConsumerWidget {
               ),
             ],
           ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(20),
-            onTap: () => _showSwitcherModal(context, ref),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.business_rounded, color: AppTheme.primaryBlue, size: 18),
-                  const SizedBox(width: 8),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        contextObj.organization.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.secondaryNavy),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () => _showSwitcherModal(context, ref),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.business_rounded, color: AppTheme.primaryBlue, size: 18),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            contextObj.organization.name,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppTheme.secondaryNavy),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            contextObj.member.role.value.toUpperCase(),
+                            style: const TextStyle(fontSize: 10, color: AppTheme.primaryBlue, fontWeight: FontWeight.w600),
+                          ),
+                        ],
                       ),
-                      Text(
-                        contextObj.member.role.value.toUpperCase(),
-                        style: const TextStyle(fontSize: 10, color: AppTheme.primaryBlue, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.keyboard_arrow_down, color: AppTheme.textSecondary, size: 18),
-                ],
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.keyboard_arrow_down, color: AppTheme.textSecondary, size: 18),
+                  ],
+                ),
               ),
             ),
           ),

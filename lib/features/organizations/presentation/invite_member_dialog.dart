@@ -67,15 +67,8 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
       }
     } catch (e) {
       if (mounted) {
-        var errorMsg = e.toString().replaceAll('Exception: ', '');
-        if (errorMsg.contains('already an active member') || errorMsg.contains('already a member')) {
-          errorMsg = 'This user is already a member of this organization.';
-        } else if (errorMsg.contains('active invitation') || errorMsg.contains('already exists')) {
-          errorMsg = 'An invitation has already been sent to this email address.';
-        }
-
         setState(() {
-          _error = errorMsg;
+          _error = e.toString().replaceAll('Exception: ', '');
           _isLoading = false;
         });
       }
@@ -87,12 +80,18 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
     if (_generatedRawToken != null) {
       return AlertDialog(
         backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        scrollable: true,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
             Icon(Icons.check_circle_outline, color: AppTheme.success, size: 24),
             SizedBox(width: 10),
-            Text('Invitation Issued', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy)),
+            Expanded(
+                child: Text('Invitation Issued',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.secondaryNavy))),
           ],
         ),
         content: Column(
@@ -101,7 +100,8 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
           children: [
             Text(
               'An invitation token was generated for ${_emailController.text.trim()}:',
-              style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+              style:
+                  const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 16),
             Container(
@@ -113,13 +113,18 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
               ),
               child: SelectableText(
                 _generatedRawToken!,
-                style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryBlue),
+                style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppTheme.primaryBlue),
               ),
             ),
             const SizedBox(height: 12),
             const Text(
               'Share this token with the recipient so they can accept it under "Accept Invitation".',
-              style: TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+              style: TextStyle(
+                  fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
             ),
           ],
         ),
@@ -130,7 +135,9 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: _generatedRawToken!));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Invitation token copied to clipboard!'), backgroundColor: AppTheme.success),
+                const SnackBar(
+                    content: Text('Invitation token copied to clipboard!'),
+                    backgroundColor: AppTheme.success),
               );
             },
           ),
@@ -144,6 +151,8 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
 
     return AlertDialog(
       backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      scrollable: true,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,12 +160,20 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Invite a new member',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.secondaryNavy),
+              const Expanded(
+                child: Text(
+                  'Invite a new member',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.secondaryNavy),
+                ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
+                icon: const Icon(Icons.close,
+                    color: AppTheme.textSecondary, size: 20),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -178,7 +195,12 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 8),
-                const Text('EMAIL ADDRESS', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                const Text('EMAIL ADDRESS',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        color: AppTheme.secondaryNavy,
+                        letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _emailController,
@@ -191,8 +213,12 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
                   validator: Validators.email,
                 ),
                 const SizedBox(height: 20),
-
-                const Text('ORGANIZATION', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                const Text('ORGANIZATION',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        color: AppTheme.secondaryNavy,
+                        letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 TextFormField(
                   initialValue: widget.organizationName,
@@ -203,14 +229,19 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                const Text('ROLE', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 11, color: AppTheme.secondaryNavy, letterSpacing: 0.5)),
+                const Text('ROLE',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                        color: AppTheme.secondaryNavy,
+                        letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 if (widget.isOwner)
                   DropdownButtonFormField<String>(
                     initialValue: _selectedRole,
                     decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.admin_panel_settings_outlined, size: 20),
+                      prefixIcon:
+                          Icon(Icons.admin_panel_settings_outlined, size: 20),
                     ),
                     items: const [
                       DropdownMenuItem(value: 'member', child: Text('Member')),
@@ -229,11 +260,11 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
                       prefixIcon: Icon(Icons.person_outline, size: 20),
                       suffixIcon: Tooltip(
                         message: 'Admins can invite Member role only',
-                        child: Icon(Icons.lock_outline, size: 18, color: AppTheme.textSecondary),
+                        child: Icon(Icons.lock_outline,
+                            size: 18, color: AppTheme.textSecondary),
                       ),
                     ),
                   ),
-
                 if (_error != null) ...[
                   const SizedBox(height: 20),
                   Container(
@@ -241,14 +272,20 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
                     decoration: BoxDecoration(
                       color: AppTheme.error.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+                      border: Border.all(
+                          color: AppTheme.error.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: AppTheme.error, size: 20),
+                        const Icon(Icons.error_outline,
+                            color: AppTheme.error, size: 20),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(_error!, style: const TextStyle(color: AppTheme.error, fontSize: 13, fontWeight: FontWeight.bold)),
+                          child: Text(_error!,
+                              style: const TextStyle(
+                                  color: AppTheme.error,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
@@ -267,7 +304,11 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
         ElevatedButton.icon(
           onPressed: _isLoading ? null : _submit,
           icon: _isLoading
-              ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              ? const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
               : const Icon(Icons.send_outlined, size: 18),
           label: Text(_isLoading ? 'Sending...' : 'Send Invitation'),
         ),

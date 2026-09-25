@@ -19,6 +19,7 @@ class _BasicInfoStepState extends ConsumerState<BasicInfoStep> {
   late TextEditingController _titleCtrl;
   late TextEditingController _descCtrl;
   VotingType _type = VotingType.candidateElection;
+  PrivacyMode _privacyMode = PrivacyMode.anonymous;
 
   @override
   void initState() {
@@ -27,6 +28,7 @@ class _BasicInfoStepState extends ConsumerState<BasicInfoStep> {
     _titleCtrl = TextEditingController(text: draft.title);
     _descCtrl = TextEditingController(text: draft.description);
     _type = draft.votingType;
+    _privacyMode = draft.privacyMode;
   }
 
   @override
@@ -87,16 +89,24 @@ class _BasicInfoStepState extends ConsumerState<BasicInfoStep> {
           _buildRadio(VotingType.yesNoPoll, 'Yes/No Poll', 'Voters approve or reject a proposal.', isDraft),
           
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.blue),
-                SizedBox(width: 12),
-                Expanded(child: Text('V1 Defaults: Privacy is locked to ANONYMOUS. Voters may select exactly 1 choice.', style: TextStyle(fontSize: 12))),
-              ],
-            ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<PrivacyMode>(
+            initialValue: _privacyMode,
+            decoration: const InputDecoration(labelText: 'Ballot privacy'),
+            items: const [
+              DropdownMenuItem(value: PrivacyMode.anonymous, child: Text('Anonymous')),
+              DropdownMenuItem(value: PrivacyMode.identifiable, child: Text('Identifiable')),
+            ],
+            onChanged: isDraft ? (value) {
+              if (value != null) setState(() => _privacyMode = value);
+            } : null,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _privacyMode == PrivacyMode.anonymous
+                ? 'Voter identity is stored separately from the ballot.'
+                : 'Each ballot is associated with the voter’s account. Voters will see this notice before confirming.',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
           
           const SizedBox(height: 24),
@@ -110,6 +120,7 @@ class _BasicInfoStepState extends ConsumerState<BasicInfoStep> {
                       _titleCtrl.text.trim(),
                       _descCtrl.text.trim(),
                       _type,
+                      _privacyMode,
                     );
                     widget.onNext();
                   }

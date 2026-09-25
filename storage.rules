@@ -15,7 +15,9 @@ service firebase.storage {
 
     function isOrgMember(orgId) {
       return firestore.exists(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)) &&
-             firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.status == 'active';
+             firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.status == 'active' &&
+             firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.organizationId == orgId &&
+             firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.userId == request.auth.uid;
     }
 
     function isOrgAdmin(orgId) {
@@ -23,6 +25,11 @@ service firebase.storage {
         firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.role == 'owner' ||
         firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.role == 'admin'
       );
+    }
+
+    function isOrgOwner(orgId) {
+      return isOrgMember(orgId) &&
+        firestore.get(/databases/(default)/documents/organizationMembers/$(orgId + '_' + request.auth.uid)).data.role == 'owner';
     }
 
     // Exact filename photo.jpg for candidate photo uploads
@@ -66,25 +73,26 @@ service firebase.storage {
     }
 
     // User Profile Avatar (Max 500KB = 512000 bytes)
-    match /users/{userId}/profile/avatar.jpg {
+    match /users/{userId}/profile/{avatarFile} {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn()
         && request.auth.uid == userId
-        && request.resource.contentType == 'image/jpeg'
+        && avatarFile in ['avatar.jpg', 'avatar.png', 'avatar.webp']
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp']
         && request.resource.size <= 512000;
       allow delete: if isSignedIn()
         && request.auth.uid == userId;
     }
 
-    // Organization Logo (Only Org Admins/Owners, Max 500KB = 512000 bytes)
+    // Organization branding is Owner-managed per the SRS.
     match /organizations/{orgId}/logo/logo.jpg {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn()
-        && isOrgAdmin(orgId)
+        && isOrgOwner(orgId)
         && request.resource.contentType.matches('image/jpeg')
         && request.resource.size < 512000;
       allow delete: if isSignedIn()
-        && isOrgAdmin(orgId);
+        && isOrgOwner(orgId);
     }
 
     // Default deny for all other storage paths
