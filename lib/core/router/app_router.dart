@@ -15,7 +15,9 @@ import '../../features/organizations/presentation/membership_directory_screen.da
 import '../../features/departments/presentation/department_members_screen.dart';
 import '../../features/departments/presentation/departments_screen.dart';
 import '../../features/organizations/presentation/join_organization_screen.dart';
-import '../../features/organizations/presentation/accept_invitation_screen.dart';
+import '../../features/organizations/presentation/invitation_inbox_screen.dart';
+import '../../features/organizations/presentation/joining_codes_screen.dart';
+import '../../features/organizations/presentation/organization_dashboard_screen.dart';
 import '../../features/organizations/presentation/create_organization_screen.dart';
 import '../../features/voting_events/presentation/dashboard/admin_event_dashboard_screen.dart';
 import '../../features/voting_events/presentation/builder/event_builder_screen.dart';
@@ -237,8 +239,16 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => const JoinOrganizationScreen(),
                   ),
                   GoRoute(
-                    path: 'accept-invitation',
-                    builder: (context, state) => const AcceptInvitationScreen(),
+                    path: 'invitations',
+                    builder: (context, state) => const InvitationInboxScreen(),
+                  ),
+                  GoRoute(
+                    path: 'dashboard',
+                    builder: (context, state) => const OrganizationDashboardScreen(),
+                  ),
+                  GoRoute(
+                    path: 'joining-codes',
+                    builder: (context, state) => const JoiningCodesScreen(),
                   ),
                   GoRoute(
                     path: 'create',

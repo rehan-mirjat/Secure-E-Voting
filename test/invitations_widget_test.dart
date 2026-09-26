@@ -15,7 +15,7 @@ class MockOrganizationRepository implements OrganizationRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 
   @override
-  Future<({String email, String invitationId, String rawToken})> inviteMember({
+  Future<({String email, String invitationId})> inviteMember({
     required String organizationId,
     required String email,
     required String role,
@@ -27,7 +27,6 @@ class MockOrganizationRepository implements OrganizationRepository {
     lastInvitedEmail = email;
     lastInvitedRole = role;
     return (
-      rawToken: 'mock_raw_token_32_chars_1234567890',
       invitationId: 'inv_123',
       email: email,
     );

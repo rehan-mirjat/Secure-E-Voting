@@ -1,18 +1,10 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { getFirestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
-import * as crypto from "crypto";
-import { getJoinCodeSecret, JOIN_CODE_SECRET } from "../utils/joinCodeSecret";
 
 const EMAIL_REGEX = /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/;
 
-function computeTokenHmac(rawToken: string): string {
-  const normalized = rawToken.trim().toUpperCase().replace(/[\s-]/g, "");
-  const secret = getJoinCodeSecret();
-  return crypto.createHmac("sha256", secret).update(normalized).digest("hex");
-}
-
-export const inviteMember = onCall({ secrets: [JOIN_CODE_SECRET] }, async (request) => {
+export const inviteMember = onCall(async (request) => {
   if (!request.auth || !request.auth.uid) {
     throw new HttpsError("unauthenticated", "Authentication required.");
   }
@@ -66,9 +58,8 @@ export const inviteMember = onCall({ secrets: [JOIN_CODE_SECRET] }, async (reque
     throw new HttpsError("permission-denied", "Only the Organization Owner can issue Admin invitations.");
   }
 
-  // Best-effort duplicate-member check. Issuing a token must not depend on the
-  // Auth lookup service being available; acceptInvitation independently checks
-  // the target email and rejects an already-active membership transactionally.
+  // Best-effort duplicate-member check. Creating an invitation must not depend
+  // on the Auth lookup service; memberInvitations checks membership transactionally.
   try {
     const targetUser = await getAuth().getUserByEmail(normalizedEmail);
     if (targetUser && targetUser.uid) {
@@ -80,15 +71,11 @@ export const inviteMember = onCall({ secrets: [JOIN_CODE_SECRET] }, async (reque
   } catch (e: any) {
     if (e instanceof HttpsError) throw e;
     if (e?.code !== "auth/user-not-found") {
-      console.warn("inviteMember recipient preflight unavailable; continuing with token issuance", {
+      console.warn("inviteMember recipient preflight unavailable; continuing with invitation creation", {
         code: e?.code ?? "unknown",
       });
     }
   }
-
-  // Generate 32-char CSPRNG Raw Token & HMAC Hash
-  const rawToken = crypto.randomBytes(16).toString("hex"); // 32 hex chars
-  const tokenHash = computeTokenHmac(rawToken);
 
   const expiresAt = new Date();
   expiresAt.setHours(expiresAt.getHours() + expiresInHours);
@@ -97,7 +84,6 @@ export const inviteMember = onCall({ secrets: [JOIN_CODE_SECRET] }, async (reque
   const lockRef = db.collection("organizationInvitationKeys").doc(lockKey);
   const invitationRef = db.collection("organizationInvitations").doc(); // Opaque Firestore Document ID
   const invitationId = invitationRef.id;
-  const tokenLookupRef = db.collection("organizationInvitationTokens").doc(tokenHash);
   const auditRef = db.collection("auditLogs").doc();
 
   // Transactional Lock Claiming & Invitation Creation
@@ -128,7 +114,6 @@ export const inviteMember = onCall({ secrets: [JOIN_CODE_SECRET] }, async (reque
       transaction.set(lockRef, {
         organizationId: organizationId,
         email: normalizedEmail,
-        tokenHash: tokenHash,
         invitationId: invitationId,
         createdAt: FieldValue.serverTimestamp(),
       });
@@ -138,20 +123,12 @@ export const inviteMember = onCall({ secrets: [JOIN_CODE_SECRET] }, async (reque
         id: invitationId,
         organizationId: organizationId,
         email: normalizedEmail,
-        tokenHash: tokenHash,
         role: role,
         status: "pending",
         invitedBy: uid,
         expiresAt: Timestamp.fromDate(expiresAt),
         createdAt: FieldValue.serverTimestamp(),
         acceptedAt: null,
-      });
-
-      // Write Token Lookup Mapping (tokenHash -> invitationId)
-      transaction.set(tokenLookupRef, {
-        invitationId: invitationId,
-        tokenHash: tokenHash,
-        createdAt: FieldValue.serverTimestamp(),
       });
 
       // Write Audit Log Document (resourceId is opaque invitationId; NO raw token, NO tokenHash)
@@ -175,7 +152,6 @@ export const inviteMember = onCall({ secrets: [JOIN_CODE_SECRET] }, async (reque
 
     return {
       status: "success",
-      rawToken: rawToken, // Returned ONLY ONCE to caller
       email: normalizedEmail,
       invitationId: invitationId,
     };

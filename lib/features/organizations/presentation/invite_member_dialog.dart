@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -29,7 +28,7 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
   late String _selectedRole;
   bool _isLoading = false;
   String? _error;
-  String? _generatedRawToken;
+  String? _invitedEmail;
 
   @override
   void initState() {
@@ -62,7 +61,7 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _generatedRawToken = result.rawToken;
+          _invitedEmail = result.email;
         });
       }
     } catch (e) {
@@ -77,7 +76,7 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
 
   @override
   Widget build(BuildContext context) {
-    if (_generatedRawToken != null) {
+    if (_invitedEmail != null) {
       return AlertDialog(
         backgroundColor: Colors.white,
         insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -88,7 +87,7 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
             Icon(Icons.check_circle_outline, color: AppTheme.success, size: 24),
             SizedBox(width: 10),
             Expanded(
-                child: Text('Invitation Issued',
+                child: Text('Invitation Created',
                     style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppTheme.secondaryNavy))),
@@ -99,48 +98,19 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'An invitation token was generated for ${_emailController.text.trim()}:',
+              'An invitation was created for $_invitedEmail.',
               style:
                   const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceBlue,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.borderLight),
-              ),
-              child: SelectableText(
-                _generatedRawToken!,
-                style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: AppTheme.primaryBlue),
-              ),
-            ),
-            const SizedBox(height: 12),
             const Text(
-              'Share this token with the recipient so they can accept it under "Accept Invitation".',
+              'The invitee will see it in SecureVote Notifications after creating or signing into a verified account with this email address. They can accept or decline it there.',
               style: TextStyle(
-                  fontSize: 12, color: AppTheme.textSecondary, height: 1.4),
+                  fontSize: 13, color: AppTheme.textSecondary, height: 1.45),
             ),
           ],
         ),
         actions: [
-          OutlinedButton.icon(
-            icon: const Icon(Icons.copy, size: 18),
-            label: const Text('Copy Token'),
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: _generatedRawToken!));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Invitation token copied to clipboard!'),
-                    backgroundColor: AppTheme.success),
-              );
-            },
-          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Done'),
@@ -180,7 +150,7 @@ class _InviteMemberDialogState extends ConsumerState<InviteMemberDialog> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Issue an invitation token to join this organization.',
+            'Invite someone to your organization. They can respond from Notifications.',
             style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
           ),
         ],

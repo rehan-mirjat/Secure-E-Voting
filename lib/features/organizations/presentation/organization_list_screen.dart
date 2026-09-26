@@ -45,7 +45,7 @@ class OrganizationListScreen extends ConsumerWidget {
                   return Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.corporate_fare_outlined,
+                      const Icon(Icons.notifications_active_outlined,
                           size: 56, color: AppTheme.primaryBlue),
                       const SizedBox(height: 16),
                       Text('No joined organizations yet',
@@ -53,15 +53,15 @@ class OrganizationListScreen extends ConsumerWidget {
                           style: Theme.of(context).textTheme.titleLarge),
                       const SizedBox(height: 8),
                       const Text(
-                        'Accept an invitation, join with an organization code, or create a new organization.',
+                        'Check your invitations, join with an organization code, or create a new organization.',
                         textAlign: TextAlign.center,
                         style: TextStyle(color: AppTheme.textSecondary),
                       ),
                       const SizedBox(height: 20),
                       FilledButton.icon(
-                        onPressed: () => context.go('/orgs/accept-invitation'),
-                        icon: const Icon(Icons.mark_email_read_outlined),
-                        label: const Text('Accept Invitation'),
+                        onPressed: () => context.go('/orgs/invitations'),
+                        icon: const Icon(Icons.notifications_outlined),
+                        label: const Text('View Invitations'),
                       ),
                       const SizedBox(height: 8),
                       OutlinedButton.icon(
@@ -135,9 +135,9 @@ class OrganizationListScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
-                          onPressed: () => context.go('/orgs/accept-invitation'),
-                          icon: const Icon(Icons.mark_email_read_outlined, size: 18),
-                          label: const Text('Accept an Invitation'),
+                          onPressed: () => context.go('/orgs/invitations'),
+                          icon: const Icon(Icons.notifications_outlined, size: 18),
+                          label: const Text('View Invitations'),
                         ),
                       ],
                     );
@@ -241,6 +241,16 @@ class OrganizationListScreen extends ConsumerWidget {
                   spacing: 10,
                   runSpacing: 10,
                   children: [
+                    if (role == OrganizationRole.owner || role == OrganizationRole.admin)
+                      OutlinedButton.icon(
+                        onPressed: () => context.go('/orgs/dashboard'),
+                        icon: const Icon(Icons.dashboard_outlined, size: 16),
+                        label: const Text('Dashboard'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 38),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                      ),
                     OutlinedButton.icon(
                       onPressed: () => context.go('/orgs/members'),
                       icon: const Icon(Icons.people_outline_rounded, size: 16),
@@ -259,6 +269,16 @@ class OrganizationListScreen extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       ),
                     ),
+                    if (role == OrganizationRole.owner || role == OrganizationRole.admin)
+                      OutlinedButton.icon(
+                        onPressed: () => context.go('/orgs/joining-codes'),
+                        icon: const Icon(Icons.key_outlined, size: 16),
+                        label: const Text('Joining Codes'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 38),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        ),
+                      ),
                     if (role == OrganizationRole.owner)
                       OutlinedButton.icon(
                         onPressed: () => context.go('/orgs/settings'),

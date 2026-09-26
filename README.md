@@ -58,6 +58,6 @@ flutter build ios
 ## Important operational notes
 
 - Organization and platform administration are separate permission systems.
-- Invitation tokens are sensitive credentials and should only be shown once to the issuing administrator or delivered through the configured invitation channel.
+- Organization invitations appear in the recipient's in-app Notifications after they sign in with the invited, verified email address. The recipient can accept or decline; invitations expire after the configured period.
 - A Firebase project owner can access backend data outside application-level controls. SecureVote is not a nationally certified election system and does not provide formal cryptographic end-to-end verifiability.
 - Performance targets in the SRS assume approximately 100–1,000 eligible voters per event. Larger elections need separate capacity and aggregation planning.

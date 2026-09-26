@@ -82,9 +82,24 @@ class PendingInvitationsWidget extends ConsumerWidget {
                 padding: EdgeInsets.all(16),
                 child: Center(child: CircularProgressIndicator()),
               ),
-              error: (err, stack) => Text(
-                'Error fetching invitations: ${err.toString()}',
-                style: const TextStyle(color: AppTheme.error),
+              error: (err, stack) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Could not load pending invitations.',
+                      style: TextStyle(color: AppTheme.error),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () => ref.invalidate(
+                          pendingInvitationsProvider(organizationId)),
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Try again'),
+                    ),
+                  ],
+                ),
               ),
               data: (invitations) {
                 if (invitations.isEmpty) {

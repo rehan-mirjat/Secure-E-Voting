@@ -95,6 +95,8 @@ class AppNavigationShell extends ConsumerWidget {
 
   Widget _buildTopHeader(BuildContext context, WidgetRef ref) {
     final platformAdmin = ref.watch(platformAdminProvider).valueOrNull == true;
+    final pendingInvitations =
+        ref.watch(memberInvitationsProvider).valueOrNull?.length ?? 0;
     final compact = ResponsiveLayout.isCompact(context);
     return Container(
       padding: EdgeInsets.symmetric(
@@ -121,14 +123,14 @@ class AppNavigationShell extends ConsumerWidget {
               onPressed: () => context.go('/platform/organizations'),
             ),
           IconButton(
-            icon: Icon(Icons.notifications_none_rounded,
-                color: Theme.of(context).colorScheme.onSurface, size: 22),
+            icon: Badge(
+              isLabelVisible: pendingInvitations > 0,
+              label: Text('$pendingInvitations'),
+              child: Icon(Icons.notifications_none_rounded,
+                  color: Theme.of(context).colorScheme.onSurface, size: 22),
+            ),
             tooltip: 'Notifications',
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('No new notifications')),
-              );
-            },
+            onPressed: () => context.go('/orgs/invitations'),
           ),
         ],
       ),

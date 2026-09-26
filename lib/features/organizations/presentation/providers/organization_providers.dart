@@ -16,6 +16,22 @@ final userMembershipsProvider = StreamProvider<List<OrganizationMember>>((ref) {
   return ref.watch(organizationRepositoryProvider).watchUserMemberships(user.uid);
 });
 
+/// Refreshes recipient invitations while the signed-in app is open.
+final memberInvitationsProvider =
+    StreamProvider.autoDispose<List<Map<String, dynamic>>>((ref) async* {
+  final user = ref.watch(authStateChangesProvider).value;
+  if (user == null) {
+    yield [];
+    return;
+  }
+
+  final repository = ref.watch(organizationRepositoryProvider);
+  yield await repository.getMyInvitations();
+  await for (final _ in Stream<int>.periodic(const Duration(seconds: 45))) {
+    yield await repository.getMyInvitations();
+  }
+});
+
 /// Streams the full list of [Organization] documents corresponding to active memberships.
 /// Parallelizes organization document fetching for high-speed loading.
 final userOrganizationsProvider = StreamProvider<List<Organization>>((ref) async* {

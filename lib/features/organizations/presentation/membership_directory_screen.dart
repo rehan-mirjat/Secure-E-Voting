@@ -180,7 +180,7 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
                             children: [
                               Expanded(child: _directoryHeading(context)),
                               if (callerRole == OrganizationRole.owner || callerRole == OrganizationRole.admin)
-                                _memberActions(context, orgId, orgContext.organization.name, callerRole),
+                                Flexible(child: _memberActions(context, orgId, orgContext.organization.name, callerRole)),
                             ],
                           ),
                   ),

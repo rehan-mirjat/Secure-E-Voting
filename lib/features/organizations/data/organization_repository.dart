@@ -70,7 +70,7 @@ class OrganizationRepository {
 
   /// Joins an Organization using a raw joining code via [joinOrganizationWithCode] Cloud Function.
   Future<({String organizationId, String organizationName})>
-      joinOrganizationWithCode(String rawCode) async {
+  joinOrganizationWithCode(String rawCode) async {
     final trimmedCode = rawCode.trim();
     if (trimmedCode.isEmpty) {
       throw Exception('Please enter a valid joining code.');
@@ -101,8 +101,74 @@ class OrganizationRepository {
     }
   }
 
-  /// Invites a user through the server-authoritative [inviteMember] function.
-  Future<({String rawToken, String invitationId, String email})> inviteMember({
+  /// Creates a joining code and returns its raw value exactly once.
+  Future<({String codeId, String rawCode})> createJoiningCode({
+    required String organizationId,
+    required int expiresInHours,
+    required int maxUses,
+  }) async {
+    try {
+      final response = await _firebase.functions
+          .httpsCallable('createJoiningCode')
+          .call({
+        'organizationId': organizationId.trim(),
+        'expiresInHours': expiresInHours,
+        'maxUses': maxUses,
+      });
+      final data = response.data as Map<dynamic, dynamic>?;
+      final codeId = data?['joiningCodeId'];
+      final rawCode = data?['rawCode'];
+      if (data?['status'] == 'success' &&
+          codeId is String &&
+          rawCode is String &&
+          rawCode.isNotEmpty) {
+        return (codeId: codeId, rawCode: rawCode);
+      }
+      throw Exception('The server did not return a joining code. Please try again.');
+    } on FirebaseFunctionsException catch (error) {
+      throw Exception(mapFirebaseFunctionsError(error));
+    } catch (error) {
+      if (error is Exception) rethrow;
+      throw Exception('Unable to create a joining code. Please try again.');
+    }
+  }
+
+  /// Lists safe metadata about joining codes for an organization.
+  Future<List<Map<String, dynamic>>> getJoiningCodes(
+      String organizationId) async {
+    try {
+      final response = await _firebase.functions
+          .httpsCallable('getJoiningCodes')
+          .call({'organizationId': organizationId.trim()});
+      final data = response.data as Map<dynamic, dynamic>?;
+      if (data?['status'] == 'success' && data?['codes'] is List) {
+        return (data!['codes'] as List<dynamic>)
+            .map((code) => Map<String, dynamic>.from(code as Map))
+            .toList();
+      }
+      throw Exception('The joining-code list could not be read. Please try again.');
+    } on FirebaseFunctionsException catch (error) {
+      throw Exception(mapFirebaseFunctionsError(error));
+    } catch (error) {
+      if (error is Exception) rethrow;
+      throw Exception('Unable to load joining codes. Please try again.');
+    }
+  }
+
+  Future<void> revokeJoiningCode(String codeId) async {
+    try {
+      await _firebase.functions
+          .httpsCallable('revokeJoiningCode')
+          .call({'codeId': codeId});
+    } on FirebaseFunctionsException catch (error) {
+      throw Exception(mapFirebaseFunctionsError(error));
+    } catch (_) {
+      throw Exception('Unable to revoke this joining code. Please try again.');
+    }
+  }
+
+  /// Creates a recipient-visible invitation through the server-authoritative function.
+  Future<({String invitationId, String email})> inviteMember({
     required String organizationId,
     required String email,
     required String role,
@@ -120,9 +186,8 @@ class OrganizationRepository {
       final data = response.data as Map<dynamic, dynamic>?;
       if (data != null &&
           data['status'] == 'success' &&
-          data['rawToken'] != null) {
+          data['invitationId'] != null) {
         return (
-          rawToken: data['rawToken'] as String,
           invitationId: (data['invitationId'] as String?) ?? '',
           email: (data['email'] as String?) ?? email,
         );
@@ -182,35 +247,64 @@ class OrganizationRepository {
     }
   }
 
-  /// Accepts an invitation token via [acceptInvitation] Cloud Function.
-  Future<({String organizationId, String organizationName})> acceptInvitation(
-      String rawToken) async {
-    final trimmedToken = rawToken.trim();
-    if (trimmedToken.isEmpty) {
-      throw Exception('Please enter a valid invitation token.');
-    }
-
+  /// Loads invitations addressed to the signed-in account.
+  Future<List<Map<String, dynamic>>> getMyInvitations() async {
     try {
-      final callable = _firebase.functions.httpsCallable('acceptInvitation');
-      final response = await callable.call({
-        'rawToken': trimmedToken,
-      });
-
+      final response = await _firebase.functions
+          .httpsCallable('memberInvitations')
+          .call({'action': 'list'});
       final data = response.data as Map<dynamic, dynamic>?;
       if (data != null &&
           data['status'] == 'success' &&
-          data['organizationId'] != null) {
+          data['invitations'] is List) {
+        return (data['invitations'] as List<dynamic>)
+            .map((item) => Map<String, dynamic>.from(item as Map))
+            .toList();
+      }
+      throw Exception('Unable to load your invitations. Please try again.');
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code == 'not-found') {
+        throw Exception(
+            'Invitation notifications are not available yet. The server function must be deployed.');
+      }
+      throw Exception(mapFirebaseFunctionsError(error));
+    } catch (_) {
+      throw Exception('Unable to load your invitations. Please try again.');
+    }
+  }
+
+  /// Accepts or declines an invitation addressed to the signed-in account.
+  Future<({String organizationId, String organizationName})>
+      respondToInvitation({
+    required String invitationId,
+    required bool accept,
+  }) async {
+    try {
+      final response = await _firebase.functions
+          .httpsCallable('memberInvitations')
+          .call({
+        'action': accept ? 'accept' : 'decline',
+        'invitationId': invitationId,
+      });
+      final data = response.data as Map<dynamic, dynamic>?;
+      if (data != null &&
+          data['status'] == 'success' &&
+          (data['organizationId'] as String?)?.isNotEmpty == true) {
         return (
           organizationId: data['organizationId'] as String,
           organizationName:
               (data['organizationName'] as String?) ?? 'Organization',
         );
       }
-      throw Exception('Unable to accept invitation. Please try again.');
-    } on FirebaseFunctionsException catch (e) {
-      throw Exception(mapFirebaseFunctionsError(e));
+      throw Exception('Unable to update this invitation. Please try again.');
+    } on FirebaseFunctionsException catch (error) {
+      if (error.code == 'not-found') {
+        throw Exception(
+            'Invitation responses are not available yet. The server function must be deployed.');
+      }
+      throw Exception(mapFirebaseFunctionsError(error));
     } catch (_) {
-      throw Exception('Unable to accept invitation. Please try again.');
+      throw Exception('Unable to update this invitation. Please try again.');
     }
   }
 
@@ -228,8 +322,9 @@ class OrganizationRepository {
     }
   }
 
-  /// Fetches pending invitations for an organization securely via [getPendingInvitations] Cloud Function,
-  /// with automatic direct Firestore fallback if Cloud Function call is unavailable.
+  /// Fetches pending invitations through the server-authoritative
+  /// [getPendingInvitations] Cloud Function. Do not fall back to client-side
+  /// reads: invitation documents contain recipient and organization data.
   Future<List<Map<String, dynamic>>> getPendingInvitations(
       String organizationId) async {
     try {
@@ -242,38 +337,25 @@ class OrganizationRepository {
       final data = response.data as Map<dynamic, dynamic>?;
       if (data != null &&
           data['status'] == 'success' &&
-          data['invitations'] != null) {
+          data['invitations'] is List) {
         final list = data['invitations'] as List<dynamic>;
         return list
             .map((item) => Map<String, dynamic>.from(item as Map))
             .toList();
       }
-    } catch (_) {
-      try {
-        final snapshot = await _firebase.firestore
-            .collection('invitations')
-            .where('organizationId', isEqualTo: organizationId)
-            .where('status', isEqualTo: 'pending')
-            .get();
-
-        if (snapshot.docs.isNotEmpty) {
-          return snapshot.docs.map((doc) {
-            final data = doc.data();
-            return {
-              'invitationId': doc.id,
-              'email': data['email'] ?? '',
-              'role': data['role'] ?? 'member',
-              'expiresAt': data['expiresAt']?.toString(),
-            };
-          }).toList();
-        }
-      } catch (_) {}
+      throw Exception(
+          'The invitation service returned an unexpected response. Please try again.');
+    } on FirebaseFunctionsException catch (error) {
+      throw Exception(mapFirebaseFunctionsError(error));
+    } catch (error) {
+      if (error is Exception) rethrow;
+      throw Exception('Unable to load pending invitations. Please try again.');
     }
-    return [];
   }
 
-  /// Fetches paginated organization members securely via [getOrganizationMembers] Cloud Function,
-  /// with automatic direct Firestore fallback if Cloud Function call is unavailable.
+  /// Fetches paginated organization members through the server-authoritative
+  /// [getOrganizationMembers] Cloud Function. Directory errors are surfaced so
+  /// a backend failure cannot be mistaken for an organization with no members.
   Future<({List<Map<String, dynamic>> members, String? nextPageToken})>
       getOrganizationMembers({
     required String organizationId,
@@ -290,44 +372,26 @@ class OrganizationRepository {
       });
 
       final data = response.data as Map<dynamic, dynamic>?;
-      if (data != null &&
-          data['status'] == 'success' &&
-          data['members'] != null) {
-        final rawList = data['members'] as List<dynamic>;
-        final members =
-            rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-        return (
-          members: members,
-          nextPageToken: data['nextPageToken'] as String?,
-        );
+      if (data == null ||
+          data['status'] != 'success' ||
+          data['members'] is! List) {
+        throw Exception(
+            'The member directory returned an unexpected response. Please try again.');
       }
-    } catch (_) {
-      try {
-        final snapshot = await _firebase.firestore
-            .collection(AppConstants.orgMembersCollection)
-            .where('organizationId', isEqualTo: organizationId.trim())
-            .get();
 
-        if (snapshot.docs.isNotEmpty) {
-          final members = snapshot.docs.map((doc) {
-            final mData = doc.data();
-            return <String, dynamic>{
-              'id': doc.id,
-              'userId': mData['userId'] ?? '',
-              'displayName': mData['displayName'] ?? mData['email'] ?? 'Member',
-              'email': mData['email'] ?? '',
-              'role': mData['role'] ?? 'member',
-              'status': mData['status'] ?? 'active',
-              'departmentId': mData['departmentId'],
-              'departmentName': mData['departmentName'],
-            };
-          }).toList();
-
-          return (members: members, nextPageToken: null);
-        }
-      } catch (_) {}
+      final rawList = data['members'] as List<dynamic>;
+      final members =
+          rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      return (
+        members: members,
+        nextPageToken: data['nextPageToken'] as String?,
+      );
+    } on FirebaseFunctionsException catch (error) {
+      throw Exception(mapFirebaseFunctionsError(error));
+    } catch (error) {
+      if (error is Exception) rethrow;
+      throw Exception('Unable to load organization members. Please try again.');
     }
-    return (members: <Map<String, dynamic>>[], nextPageToken: null);
   }
 
   /// Updates a member's role via [updateMemberRole] Cloud Function.
