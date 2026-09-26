@@ -1,186 +1,63 @@
-<<<<<<< HEAD
-# Secure-E-Voting
-SecureVote is a multi-tenant electronic voting and polling platform that allows independent organizations to create and manage secure voting events for their members. The system is designed first as a Final Year Project and as a foundation for a future publicly deployed commercial platform.
-=======
-# Secure E-Voting System
+# SecureVote
 
-A Flutter + Firebase e-voting application for academic and club elections (~100–1,000 voters). Built with vote integrity, authentication, one-vote-per-voter enforcement, and ballot anonymity.
+SecureVote is a multi-tenant voting and polling application for organizations. The Flutter client targets Android, iOS, and web. Firebase Authentication handles identity; Cloud Functions enforce sensitive operations; Firestore stores application data; Cloud Storage stores approved images.
 
-## Architecture
+## Product scope
 
-```
-Flutter App (Riverpod + go_router)
-    ├── Firebase Auth        (email/password)
-    ├── Cloud Firestore      (elections, candidates, users)
-    ├── Cloud Functions      (castVote, getElectionResults, closeElection)
-    └── Firebase Storage     (candidate photos)
-```
+Version 1 supports:
 
-### Security Model
+- Organization registration, verification, branding, and organization switching.
+- Organization owners, administrators, and members with organization-scoped roles.
+- Member invitations, adding existing accounts, joining codes, and departments.
+- Candidate elections, single-choice polls, and Yes/No polls.
+- All-member, selected-member, and selected-department eligibility.
+- Anonymous and identifiable voting, one vote per event, participation receipts, turnout monitoring, server-calculated results, and result publication.
+- Organization audit logs and a separate platform administration area.
 
+## Security model
 
-| Threat              | Mitigation                                                       |
-| ------------------- | ---------------------------------------------------------------- |
-| Unauthorized voting | Firebase Auth required                                           |
-| Double voting       | Atomic transaction in `castVote` Cloud Function                  |
-| Vote tampering      | Clients cannot write to `votes` collection                       |
-| Vote coercion       | Votes stored without `voterId`; participation tracked separately |
-| Fake results        | Results aggregated server-side via Cloud Function                |
+- Firebase Authentication provides the user identity. Roles are stored per organization, not globally.
+- Every organization-scoped backend request checks the authenticated user, active membership, role, and resource ownership.
+- Firestore rules deny client writes to votes, participation records, invitation records, results, memberships, and audit logs. Trusted Cloud Functions perform those writes.
+- Anonymous ballots omit voter identity and selection data is kept out of participation and receipt records.
+- Vote eligibility, duplicate checks, event status, and voting-window checks are enforced by the backend using server time.
+- Platform administration uses a trusted `platformAdmin` authentication claim; the client cannot set it.
 
+## Project layout
 
+- `lib/` — Flutter application, organized by feature.
+- `functions/src/` — TypeScript Cloud Functions.
+- `firestore.rules` and `firestore.indexes.json` — Firestore access policy and indexes.
+- `storage.rules` — Cloud Storage access policy.
+- `test/` — Flutter unit and widget tests.
 
+## Configure Firebase
 
-## Prerequisites
+1. Install Flutter and Node.js 22, then run `flutter pub get` and `npm --prefix functions install`.
+2. Configure Firebase Authentication, Firestore, Cloud Storage, and Cloud Functions in the Firebase project.
+3. Set the project alias in `.firebaserc` and configure the Flutter platform files with FlutterFire.
+4. Configure the required Cloud Functions secrets in Secret Manager. Invitation email delivery also requires a configured mail delivery provider if email sending is enabled.
+5. Review the target Firebase project and deploy the backend resources:
 
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.5+)
-- [Node.js 20](https://nodejs.org/)
-- [Firebase CLI](https://firebase.google.com/docs/cli)
-- A Firebase project (or use emulators locally)
+   ```sh
+   firebase deploy --only firestore:rules,firestore:indexes,storage,functions
+   ```
 
+Do not grant platform-administrator claims through the client. Assign them through a trusted, reviewed administrative process.
 
+## Build the app
 
-## Setup
+Use Flutter's standard build commands for the intended platform, for example:
 
-
-
-### 1. Clone and install dependencies
-
-```bash
-cd "Secure E Voting System/secure_e_voting"
-flutter pub get
-cd functions && npm install && cd ..
-```
-
-
-
-### 2. Configure Firebase
-
-```bash
-# Install FlutterFire CLI
-dart pub global activate flutterfire_cli
-
-# Link to your Firebase project
-flutterfire configure
+```sh
+flutter build web
+flutter build apk
+flutter build ios
 ```
 
-Update `.firebaserc` with your project ID if needed.
+## Important operational notes
 
-### 3. Enable Firebase services
-
-In the [Firebase Console](https://console.firebase.google.com/):
-
-- **Authentication** → Email/Password
-- **Firestore Database** → Create database
-- **Storage** → Enable
-- **Functions** → Enable (Blaze plan required for deploy)
-
-
-
-### 4. Deploy backend
-
-```bash
-firebase deploy --only firestore:rules,storage,functions
-```
-
-
-
-### 5. Bootstrap first admin
-
-1. Register a user in the app
-2. Call the `setAdminRole` Cloud Function with that user's UID:
-
-```bash
-# Via Firebase Functions shell or a one-time script
-firebase functions:shell
-> setAdminRole({ uid: "YOUR_USER_UID" })
-```
-
-1. Sign out and sign back in to refresh custom claims
-
-
-
-## Local Development (Emulators)
-
-```bash
-# Terminal 1: Start Firebase emulators
-firebase emulators:start
-
-# Terminal 2: Point the app at emulators (off by default)
-flutter run --dart-define=USE_FIREBASE_EMULATORS=true
-```
-
-Emulator UI: [http://localhost:4000](http://localhost:4000)
-
-## Project Structure
-
-```
-lib/
-├── core/           # Theme, router, constants, widgets
-├── features/
-│   ├── auth/       # Login, register
-│   ├── elections/  # Election list, detail
-│   ├── voting/     # Vote confirmation
-│   ├── admin/      # Election CRUD, candidates, monitor
-│   └── results/    # Results charts
-├── services/       # Firebase, auth, functions
-functions/
-├── src/
-│   ├── voting/     # castVote, getElectionResults
-│   └── admin/      # closeElection, setAdminRole
-```
-
-
-
-## User Flows
-
-
-
-### Voter
-
-1. Register / Sign in
-2. View active elections
-3. Select candidate → Confirm vote
-4. View results after election closes
-
-
-
-### Admin
-
-1. Create election (draft → active)
-2. Add candidates with photos
-3. Monitor turnout (count only, not individual votes)
-4. Close election → View results
-
-
-
-## Running Tests
-
-```bash
-# Flutter unit tests
-flutter test
-
-# Cloud Functions tests
-cd functions && npm test
-```
-
-
-
-## Firestore Collections
-
-
-| Collection                  | Purpose                                |
-| --------------------------- | -------------------------------------- |
-| `users`                     | User profiles and roles                |
-| `elections`                 | Election metadata                      |
-| `elections/{id}/candidates` | Candidate info                         |
-| `voter_participation`       | One doc per voter per election (dedup) |
-| `votes`                     | Anonymous ballots (no voterId)         |
-| `audit_logs`                | Admin action trail                     |
-
-
-
-
-## License
-
-MIT — For educational and portfolio use.
->>>>>>> f8e9fbd (Initial commit)
+- Organization and platform administration are separate permission systems.
+- Invitation tokens are sensitive credentials and should only be shown once to the issuing administrator or delivered through the configured invitation channel.
+- A Firebase project owner can access backend data outside application-level controls. SecureVote is not a nationally certified election system and does not provide formal cryptographic end-to-end verifiability.
+- Performance targets in the SRS assume approximately 100–1,000 eligible voters per event. Larger elections need separate capacity and aggregation planning.

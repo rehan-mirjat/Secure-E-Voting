@@ -22,7 +22,9 @@ export const ping = onCall((request) => {
 
 export * from "./auth/completeRegistration";
 export * from "./organizations/createOrganization";
+export * from "./organizations/updateOrganization";
 export * from "./membership/createJoiningCode";
+export * from "./membership/addMember";
 export * from "./membership/joinOrganizationWithCode";
 export * from "./membership/revokeJoiningCode";
 export * from "./membership/inviteMember";

@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 String mapFirebaseAuthError(FirebaseAuthException error) {
   switch (error.code) {
     case 'email-already-in-use':
-      return 'An account with this email already exists.';
+      return 'Could not create the account with these details. Check the information and try again.';
     case 'invalid-email':
       return 'Please enter a valid email address.';
     case 'weak-password':

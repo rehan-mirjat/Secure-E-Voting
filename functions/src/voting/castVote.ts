@@ -182,6 +182,10 @@ export const castVote = onCall({ cors: true }, async (request) => {
     if (error instanceof HttpsError) {
       throw error;
     }
-    throw new HttpsError("internal", `An error occurred while processing your vote: ${(error as Error).message}`);
+    console.error("castVote failed to complete its transaction.", error);
+    throw new HttpsError(
+      "internal",
+      "Your vote could not be confirmed. Check your participation status before trying again.",
+    );
   }
 });

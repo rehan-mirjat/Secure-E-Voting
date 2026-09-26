@@ -13,20 +13,26 @@ export const getOrganizationMembers = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Valid organizationId is required.");
   }
 
+  const cleanOrganizationId = organizationId.trim();
   const limit = Math.min(Math.max(Number(pageSize) || 50, 1), 100);
   const db = getFirestore();
 
   // 1. Verify caller is an active member
-  const callerMemberRef = db.collection("organizationMembers").doc(`${organizationId}_${uid}`);
+  const callerMemberRef = db.collection("organizationMembers").doc(`${cleanOrganizationId}_${uid}`);
   const callerSnap = await callerMemberRef.get();
 
-  if (!callerSnap.exists || callerSnap.data()?.status !== "active") {
+  const callerData = callerSnap.data();
+  if (!callerSnap.exists || callerData?.status !== "active" ||
+      callerData?.organizationId !== cleanOrganizationId || callerData?.userId !== uid) {
     throw new HttpsError("permission-denied", "You must be an active member to view the directory.");
+  }
+  if (callerData.role !== "owner" && callerData.role !== "admin") {
+    throw new HttpsError("permission-denied", "Only Organization Owners or Admins can view the member directory.");
   }
 
   // 2. Fetch Paginated Members
   let membersQuery = db.collection("organizationMembers")
-    .where("organizationId", "==", organizationId)
+    .where("organizationId", "==", cleanOrganizationId)
     .orderBy("joinedAt", "desc")
     .limit(limit);
 
@@ -74,7 +80,7 @@ export const getOrganizationMembers = onCall(async (request) => {
       if (deptId) {
         try {
           const deptSnap = await db.collection("departments").doc(deptId).get();
-          if (deptSnap.exists && deptSnap.data()?.organizationId === organizationId) {
+          if (deptSnap.exists && deptSnap.data()?.organizationId === cleanOrganizationId) {
             departmentName = deptSnap.data()?.name;
           }
         } catch (e) {

@@ -11,6 +11,7 @@ class Organization {
     required this.email,
     this.website,
     this.logoUrl,
+    this.brandColors = const {},
     required this.country,
     required this.city,
     required this.status,
@@ -27,6 +28,7 @@ class Organization {
   final String email;
   final String? website;
   final String? logoUrl;
+  final Map<String, String> brandColors;
   final String country;
   final String city;
   final OrganizationStatus status;
@@ -49,6 +51,10 @@ class Organization {
       email: data['email'] as String? ?? '',
       website: data['website'] as String?,
       logoUrl: data['logoUrl'] as String?,
+      brandColors: (data['brandColors'] as Map?)?.map(
+            (key, value) => MapEntry(key.toString(), value.toString()),
+          ) ??
+          const {},
       country: data['country'] as String? ?? '',
       city: data['city'] as String? ?? '',
       status: OrganizationStatus.fromString(data['status'] as String? ?? 'pending'),
@@ -67,6 +73,7 @@ class Organization {
       'email': email,
       if (website != null) 'website': website,
       if (logoUrl != null) 'logoUrl': logoUrl,
+      if (brandColors.isNotEmpty) 'brandColors': brandColors,
       'country': country,
       'city': city,
       'status': status.value,

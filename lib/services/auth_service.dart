@@ -85,7 +85,7 @@ class AuthService {
       return userCredential;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'account-exists-with-different-credential') {
-        throw Exception('An account already exists with this email using a different sign-in method.');
+        throw Exception('Sign-in could not be completed. Try another sign-in method or use password recovery.');
       }
       rethrow;
     }

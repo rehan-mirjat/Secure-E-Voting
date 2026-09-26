@@ -153,9 +153,9 @@ class OrganizationRepository {
         'deadline-exceeded' =>
           'Invitation service is unavailable. Please try again shortly.',
         'internal' => serverMessage ??
-            'The server could not save this invitation. Please try again shortly.',
+            'The invitation service could not process this request. Please try again shortly.',
         _ => serverMessage ??
-            'Invitation failed (${error.code}). Please check the Functions emulator logs.',
+            'The invitation failed (${error.code}). Please try again or contact your administrator.',
       };
       throw Exception(message);
     } catch (error) {
@@ -163,6 +163,23 @@ class OrganizationRepository {
     }
     throw Exception(
         'Invitation service returned an invalid response. Please try again.');
+  }
+
+  /// Adds an existing verified SecureVote account directly as a regular member.
+  Future<void> addMember({
+    required String organizationId,
+    required String email,
+  }) async {
+    try {
+      await _firebase.functions.httpsCallable('addMember').call({
+        'organizationId': organizationId.trim(),
+        'email': email.trim(),
+      });
+    } on FirebaseFunctionsException catch (error) {
+      throw Exception(mapFirebaseFunctionsError(error));
+    } catch (_) {
+      throw Exception('Unable to add this member. Please try again.');
+    }
   }
 
   /// Accepts an invitation token via [acceptInvitation] Cloud Function.
@@ -454,6 +471,12 @@ class OrganizationRepository {
     if (imageBytes.length >= 512000) {
       throw Exception(
           'Organization logo exceeds 500 KB size limit (512,000 bytes).');
+    }
+    if (imageBytes.length < 3 ||
+        imageBytes[0] != 0xFF ||
+        imageBytes[1] != 0xD8 ||
+        imageBytes[2] != 0xFF) {
+      throw Exception('Organization logos must be JPEG images.');
     }
 
     // Upload to organization-scoped path: organizations/{orgId}/logo/logo.jpg

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
 import 'core/presentation/splash_screen.dart';
+import 'features/organizations/presentation/providers/organization_providers.dart';
 import 'firebase_options.dart';
 import 'services/firebase_service.dart';
 
@@ -80,8 +81,7 @@ class _SecureEVotingAppState extends ConsumerState<SecureEVotingApp> {
         title: 'SecureVote',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
+        themeMode: ThemeMode.light,
         home: SplashScreen(
           errorMessage: _initError,
           onRetry: _retryInitialization,
@@ -90,13 +90,18 @@ class _SecureEVotingAppState extends ConsumerState<SecureEVotingApp> {
     }
 
     final goRouter = ref.watch(goRouterProvider);
+    final brandColors = ref
+        .watch(activeOrganizationContextProvider)
+        .valueOrNull
+        ?.context
+        ?.organization
+        .brandColors;
 
     return MaterialApp.router(
       title: 'SecureVote',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
+      theme: AppTheme.withOrganizationBranding(AppTheme.lightTheme, brandColors),
+      themeMode: ThemeMode.light,
       routerConfig: goRouter,
     );
   }

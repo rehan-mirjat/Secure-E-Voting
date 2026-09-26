@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_theme.dart';
-import '../../../core/widgets/empty_view.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../core/widgets/status_badge.dart';
@@ -43,18 +42,46 @@ class OrganizationListScreen extends ConsumerWidget {
               ),
               data: (memberships) {
                 if (memberships.isEmpty) {
-                  return EmptyView(
-                    icon: Icons.corporate_fare_outlined,
-                    title: 'No Joined Organizations',
-                    message: 'You do not belong to any active organizations yet. Create an organization or join one.',
-                    actionLabel: 'Create Organization',
-                    onAction: () {
-                      if (onCreateOrgTap != null) {
-                        onCreateOrgTap!();
-                      } else {
-                        context.go('/orgs/create');
-                      }
-                    },
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.corporate_fare_outlined,
+                          size: 56, color: AppTheme.primaryBlue),
+                      const SizedBox(height: 16),
+                      Text('No joined organizations yet',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleLarge),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Accept an invitation, join with an organization code, or create a new organization.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppTheme.textSecondary),
+                      ),
+                      const SizedBox(height: 20),
+                      FilledButton.icon(
+                        onPressed: () => context.go('/orgs/accept-invitation'),
+                        icon: const Icon(Icons.mark_email_read_outlined),
+                        label: const Text('Accept Invitation'),
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => context.go('/orgs/join'),
+                        icon: const Icon(Icons.qr_code_scanner_rounded),
+                        label: const Text('Join with Organization Code'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: () {
+                          if (onCreateOrgTap != null) {
+                            onCreateOrgTap!();
+                          } else {
+                            context.go('/orgs/create');
+                          }
+                        },
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('Create Organization'),
+                      ),
+                    ],
                   );
                 }
 
@@ -105,6 +132,12 @@ class OrganizationListScreen extends ConsumerWidget {
                           },
                           icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
                           label: const Text('Join Organization with Code'),
+                        ),
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () => context.go('/orgs/accept-invitation'),
+                          icon: const Icon(Icons.mark_email_read_outlined, size: 18),
+                          label: const Text('Accept an Invitation'),
                         ),
                       ],
                     );

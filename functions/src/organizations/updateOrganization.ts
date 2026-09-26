@@ -12,7 +12,7 @@ export const updateOrganization = onCall(async (request) => {
   const uid = request.auth.uid;
   const db = getFirestore();
 
-  const { organizationId, description, website, logoUrl } = request.data || {};
+  const { organizationId, name, description, website, logoUrl, brandColors } = request.data || {};
 
   if (!organizationId || typeof organizationId !== "string" || organizationId.trim().length === 0) {
     throw new HttpsError("invalid-argument", "Valid organizationId is required.");
@@ -36,6 +36,13 @@ export const updateOrganization = onCall(async (request) => {
 
   // 3. Validate cosmetic fields
   const updates: Record<string, any> = {};
+
+  if (name !== undefined) {
+    if (typeof name !== "string" || name.trim().length < 3 || name.trim().length > 100) {
+      throw new HttpsError("invalid-argument", "Organization name must be between 3 and 100 characters.");
+    }
+    updates.name = name.trim();
+  }
 
   if (description !== undefined) {
     if (description !== null && (typeof description !== "string" || description.trim().length > 500)) {
@@ -70,6 +77,24 @@ export const updateOrganization = onCall(async (request) => {
     } else {
       updates.logoUrl = null;
     }
+  }
+
+  if (brandColors !== undefined) {
+    const allowedKeys = ["primary", "secondary", "accent"];
+    if (!brandColors || typeof brandColors !== "object" || Array.isArray(brandColors) ||
+        Object.keys(brandColors).some((key) => !allowedKeys.includes(key))) {
+      throw new HttpsError("invalid-argument", "Brand colors must contain only primary, secondary, and accent colors.");
+    }
+    for (const key of allowedKeys) {
+      if (typeof brandColors[key] !== "string" || !/^#[0-9a-fA-F]{6}$/.test(brandColors[key])) {
+        throw new HttpsError("invalid-argument", `The ${key} brand color must be a six-digit hexadecimal color.`);
+      }
+    }
+    updates.brandColors = {
+      primary: brandColors.primary.toUpperCase(),
+      secondary: brandColors.secondary.toUpperCase(),
+      accent: brandColors.accent.toUpperCase(),
+    };
   }
 
   if (Object.keys(updates).length === 0) {

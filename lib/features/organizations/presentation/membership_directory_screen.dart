@@ -10,6 +10,7 @@ import '../../../core/widgets/loading_view.dart';
 import '../domain/organization_enums.dart';
 import '../data/organization_repository.dart';
 import 'invite_member_dialog.dart';
+import 'add_existing_member_dialog.dart';
 import 'member_profile_dialog.dart';
 import 'providers/organization_providers.dart';
 import 'pending_invitations_widget.dart';
@@ -61,6 +62,34 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
         ),
         icon: const Icon(Icons.person_add_alt_1_rounded),
         label: const Text('Invite member'),
+      );
+
+  Widget _memberActions(
+    BuildContext context,
+    String orgId,
+    String orgName,
+    OrganizationRole role,
+  ) =>
+      Wrap(
+        alignment: WrapAlignment.end,
+        spacing: 10,
+        runSpacing: 8,
+        children: [
+          OutlinedButton.icon(
+            onPressed: () async {
+              final added = await showDialog<bool>(
+                context: context,
+                builder: (_) => AddExistingMemberDialog(organizationId: orgId),
+              );
+              if (added == true && mounted) {
+                ref.invalidate(organizationMembersDirectoryProvider(orgId));
+              }
+            },
+            icon: const Icon(Icons.person_add_alt_rounded),
+            label: const Text('Add existing'),
+          ),
+          _inviteButton(context, orgId, orgName, role),
+        ],
       );
 
   Widget _memberSearchField() => TextField(
@@ -143,10 +172,7 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
                               _directoryHeading(context),
                               if (callerRole == OrganizationRole.owner || callerRole == OrganizationRole.admin) ...[
                                 const SizedBox(height: 14),
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: _inviteButton(context, orgId, orgContext.organization.name, callerRole),
-                                ),
+                                _memberActions(context, orgId, orgContext.organization.name, callerRole),
                               ],
                             ],
                           )
@@ -154,7 +180,7 @@ class _MembershipDirectoryScreenState extends ConsumerState<MembershipDirectoryS
                             children: [
                               Expanded(child: _directoryHeading(context)),
                               if (callerRole == OrganizationRole.owner || callerRole == OrganizationRole.admin)
-                                _inviteButton(context, orgId, orgContext.organization.name, callerRole),
+                                _memberActions(context, orgId, orgContext.organization.name, callerRole),
                             ],
                           ),
                   ),

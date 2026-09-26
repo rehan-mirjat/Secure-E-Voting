@@ -21,6 +21,51 @@ class AppTheme {
   static const Color error = Color(0xFFEF4444); // Red 500
   static const Color warning = Color(0xFFF59E0B); // Amber 500
 
+  static ThemeData withOrganizationBranding(
+    ThemeData base,
+    Map<String, String>? brandColors,
+  ) {
+    if (brandColors == null || brandColors.isEmpty) return base;
+    final primary = _parseBrandColor(brandColors['primary'], primaryBlue);
+    final secondary = _parseBrandColor(brandColors['secondary'], secondaryNavy);
+    final accent = _parseBrandColor(brandColors['accent'], accentTeal);
+    final onPrimary = primary.computeLuminance() > 0.55 ? Colors.black : Colors.white;
+    final scheme = base.colorScheme.copyWith(
+      primary: primary,
+      onPrimary: onPrimary,
+      secondary: secondary,
+      tertiary: accent,
+    );
+
+    return base.copyWith(
+      colorScheme: scheme,
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primary,
+          foregroundColor: scheme.onPrimary,
+          minimumSize: const Size.fromHeight(48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(foregroundColor: primary),
+      ),
+      inputDecorationTheme: base.inputDecorationTheme.copyWith(
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: primary, width: 1.8),
+        ),
+      ),
+    );
+  }
+
+  static Color _parseBrandColor(String? value, Color fallback) {
+    if (value == null || !RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) {
+      return fallback;
+    }
+    return Color(int.parse(value.substring(1), radix: 16) | 0xFF000000);
+  }
+
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
