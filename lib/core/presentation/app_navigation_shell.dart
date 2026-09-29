@@ -198,11 +198,11 @@ class _TopHeader extends ConsumerWidget {
     return Container(
       padding: EdgeInsets.symmetric(
           horizontal: compact ? 12 : 20, vertical: compact ? 8 : 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+      decoration: const BoxDecoration(
+        color: AppTheme.surfaceWhite,
         border: Border(
-            bottom:
-                BorderSide(color: Theme.of(context).dividerColor, width: 1)),
+          bottom: BorderSide(color: AppTheme.borderLight, width: 1),
+        ),
       ),
       child: Row(
         children: [
