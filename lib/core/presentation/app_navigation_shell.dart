@@ -96,44 +96,74 @@ class AppNavigationShell extends ConsumerWidget {
   Widget _buildSidebar(BuildContext context, bool isAdmin) {
     return Container(
       width: 260,
-      color: AppTheme.secondaryNavy,
-      child: Column(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF0B132B), // Deep Midnight Navy
+            Color(0xFF0F172A), // Slate Navy
+            Color(0xFF182238), // Royal Dark Accent
+          ],
+        ),
+        border: Border(
+          right: BorderSide(color: Color(0xFF1E293B), width: 1),
+        ),
+      ),
+      child: Stack(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-            child: Row(
-              children: [
-                Image.asset(
-                  'assets/icon/app_icon_transparent.png',
-                  width: 32,
-                  height: 32,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'SecureVote',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.4,
-                  ),
-                ),
-              ],
+          // Subtle top-left ambient electric blue glow behind logo
+          Positioned(
+            top: -80,
+            left: -80,
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.primaryBlue.withValues(alpha: 0.12),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          _buildSidebarItem(
-              context, 0, Icons.home_outlined, Icons.home_rounded, 'Home'),
-          _buildSidebarItem(context, 1, Icons.business_outlined,
-              Icons.business_rounded, 'Organizations'),
-          _buildSidebarItem(context, 2, Icons.settings_outlined,
-              Icons.settings_rounded, 'Settings'),
-          if (isAdmin)
-            _buildSidebarItem(context, 3, Icons.admin_panel_settings_outlined,
-                Icons.admin_panel_settings_rounded, 'Admin'),
-          const Spacer(),
-          const SizedBox(height: 24),
+          Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                child: Row(
+                  children: [
+                    Image.asset(
+                      'assets/icon/app_icon_transparent.png',
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'SecureVote',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildSidebarItem(
+                  context, 0, Icons.home_outlined, Icons.home_rounded, 'Home'),
+              _buildSidebarItem(context, 1, Icons.business_outlined,
+                  Icons.business_rounded, 'Organizations'),
+              _buildSidebarItem(context, 2, Icons.settings_outlined,
+                  Icons.settings_rounded, 'Settings'),
+              if (isAdmin)
+                _buildSidebarItem(context, 3, Icons.admin_panel_settings_outlined,
+                    Icons.admin_panel_settings_rounded, 'Admin'),
+              const Spacer(),
+              const SizedBox(height: 24),
+            ],
+          ),
         ],
       ),
     );
@@ -146,13 +176,22 @@ class AppNavigationShell extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
       child: InkWell(
         onTap: () => _goBranch(index),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryBlue.withValues(alpha: 0.35),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
           child: Row(
             children: [
