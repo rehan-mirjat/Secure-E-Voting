@@ -88,25 +88,30 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.sizeOf(context).width < 600;
+
     return AuthSplitLayout(
       showMobileBranding: false,
       onMobileBackTap: widget.onBackToLoginTap,
       child: Center(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(
-            horizontal: MediaQuery.sizeOf(context).width < 380 ? 12 : 24,
-            vertical: MediaQuery.sizeOf(context).height < 700 ? 20 : 40,
+            horizontal: isMobile ? 16 : 24,
+            vertical: isMobile ? 16 : 32,
           ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 440),
             child: Card(
               elevation: 0,
+              color: isMobile ? Colors.transparent : null,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppTheme.borderLight),
+                side: isMobile
+                    ? BorderSide.none
+                    : const BorderSide(color: AppTheme.borderLight),
               ),
               child: Padding(
-                padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 420 ? 20 : 36),
+                padding: EdgeInsets.all(isMobile ? 16 : 36),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -114,22 +119,23 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     children: [
                       Center(
                         child: Container(
-                          padding: const EdgeInsets.all(16),
+                          width: 64,
+                          height: 64,
+                          padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryBlue.withValues(alpha: 0.05),
+                            color: AppTheme.primaryBlue.withValues(alpha: 0.08),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
-                            Icons.lock_outline,
-                            size: 28,
-                            color: AppTheme.primaryBlue,
+                          child: Image.asset(
+                            'assets/icon/app_icon_transparent.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: isMobile ? 16 : 20),
                       Text(
                         'Forgot Password?',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppTheme.secondaryNavy,
                             ),
@@ -141,7 +147,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.5),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 32),
+                      SizedBox(height: isMobile ? 20 : 28),
 
                       if (_isSubmitted) ...[
                         Container(
