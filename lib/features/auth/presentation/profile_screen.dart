@@ -8,7 +8,6 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../services/auth_service.dart';
-import '../../../services/firebase_service.dart';
 import '../data/user_repository.dart';
 import '../domain/app_user.dart';
 import 'widgets/change_password_section.dart';
@@ -147,7 +146,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _confirmDeleteAccount(BuildContext context) async {
-    final messenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -182,36 +180,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Permanently Delete'),
+            child: const Text('Delete Permanently'),
           ),
         ],
       ),
     );
 
-    if (confirm == true) {
+    if (confirm == true && mounted) {
       try {
         await ref.read(authServiceProvider).deleteAccount();
-        if (mounted) {
-          messenger.showSnackBar(
-            const SnackBar(
-                content: Text('Your account has been deleted.'),
-                backgroundColor: AppTheme.success),
-          );
-        }
       } catch (e) {
         if (mounted) {
-          messenger.showSnackBar(
-            SnackBar(
-              content: Text(
-                  'Failed to delete account: ${e.toString().replaceAll('Exception: ', '')}'),
-              backgroundColor: AppTheme.error,
-            ),
-          );
+          setState(() {
+            _error = 'Failed to delete account: $e';
+          });
         }
       }
     }
@@ -219,302 +203,223 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final profileAsync = ref.watch(userProfileProvider(widget.uid));
-    final authService = ref.watch(authServiceProvider);
-    final currentUser = authService.currentUser;
-    final isEmailVerified = authService.isEmailVerified;
-
-    final hasPasswordProvider =
-        currentUser?.providerData.any((p) => p.providerId == 'password') ??
-            false;
-    final hasGoogleProvider =
-        currentUser?.providerData.any((p) => p.providerId == 'google.com') ??
-            false;
-    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    final userAsync = ref.watch(userProfileProvider(widget.uid));
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: const Text('Profile Settings'),
-      ),
-      body: profileAsync.when(
-        loading: () => const LoadingView(message: 'Loading user profile...'),
-        error: (err, stack) => ErrorView(
-          message: 'Error loading profile: $err',
-          onRetry: () => ref.invalidate(userProfileProvider(widget.uid)),
-        ),
-        data: (user) {
-          if (user == null) {
-            return const ErrorView(
-              title: 'Profile Not Found',
-              message: 'Your user profile record could not be found.',
-            );
-          }
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 960),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Profile Settings',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.secondaryNavy,
+                      ),
+                ),
+                const SizedBox(height: 20),
+                userAsync.when(
+                  loading: () =>
+                      const LoadingView(message: 'Loading user profile...'),
+                  error: (err, stack) => ErrorView(
+                    message: 'Error loading profile: $err',
+                    onRetry: () =>
+                        ref.invalidate(userProfileProvider(widget.uid)),
+                  ),
+                  data: (user) {
+                    if (user == null) {
+                      return const ErrorView(message: 'User profile not found.');
+                    }
 
-          _populateControllers(user);
-          final dateFormat = DateFormat('MMMM d, yyyy');
-          final firestorePhotoUrl = user.photoUrl?.trim();
-          final authPhotoUrl = currentUser?.photoURL?.trim();
-          final photoUrl = _uploadedPhotoUrl ??
-              (firestorePhotoUrl != null && firestorePhotoUrl.isNotEmpty
-                  ? firestorePhotoUrl
-                  : (authPhotoUrl != null && authPhotoUrl.isNotEmpty
-                      ? authPhotoUrl
-                      : null));
+                    _populateControllers(user);
 
-          final leftColumn = _buildLeftColumn(
-            context,
-            user,
-            isEmailVerified,
-            hasPasswordProvider,
-            hasGoogleProvider,
-            dateFormat,
-            photoUrl,
-          );
+                    final isDesktop = MediaQuery.of(context).size.width >= 800;
 
-          final rightColumn = _buildRightColumn(context);
-
-          return Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 800),
-                child: isDesktop
-                    ? Row(
+                    if (isDesktop) {
+                      return Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(flex: 2, child: leftColumn),
-                          const SizedBox(width: 20),
-                          Expanded(flex: 1, child: rightColumn),
+                          Expanded(
+                            flex: 3,
+                            child: _buildLeftColumn(context, user),
+                          ),
+                          const SizedBox(width: 24),
+                          Expanded(
+                            flex: 2,
+                            child: _buildRightColumn(context),
+                          ),
                         ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          leftColumn,
-                          const SizedBox(height: 20),
-                          rightColumn,
-                        ],
-                      ),
-              ),
+                      );
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildLeftColumn(context, user),
+                        const SizedBox(height: 20),
+                        _buildRightColumn(context),
+                      ],
+                    );
+                  },
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildLeftColumn(
-    BuildContext context,
-    AppUser user,
-    bool isEmailVerified,
-    bool hasPasswordProvider,
-    bool hasGoogleProvider,
-    DateFormat dateFormat,
-    String? photoUrl,
-  ) {
+  Widget _buildLeftColumn(BuildContext context, AppUser user) {
+    final authUser = ref.watch(authServiceProvider).currentUser;
+    final photoUrl = _uploadedPhotoUrl ?? user.photoUrl ?? authUser?.photoURL;
+    final dateFormat = DateFormat('MMMM d, yyyy');
+    final hasPasswordProvider = authUser?.providerData
+            .any((info) => info.providerId == 'password') ??
+        false;
+    final hasGoogleProvider = authUser?.providerData
+            .any((info) => info.providerId == 'google.com') ??
+        false;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // PROFILE HEADER
+        // Profile Avatar Header Card
         Card(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Row(
               children: [
-                // Avatar
-                SizedBox(
-                  width: 88,
-                  height: 88,
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withValues(alpha: 0.35),
-                              width: 2),
-                        ),
-                        child: ClipOval(
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 38,
+                      backgroundColor: AppTheme.surfaceBlue,
+                      backgroundImage:
+                          photoUrl != null ? NetworkImage(photoUrl) : null,
+                      child: photoUrl == null
+                          ? Text(
+                              user.firstName.isNotEmpty
+                                  ? user.firstName[0].toUpperCase()
+                                  : 'U',
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryBlue,
+                              ),
+                            )
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: InkWell(
+                        onTap: _isUploadingPhoto ? null : _pickAndUploadImage,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: AppTheme.primaryBlue,
+                            shape: BoxShape.circle,
+                          ),
                           child: _isUploadingPhoto
-                              ? const Center(
-                                  child: SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
                                   ),
                                 )
-                              : (photoUrl != null && photoUrl.isNotEmpty
-                                  ? Image.network(
-                                      FirebaseService.sanitizeStorageUrl(
-                                          photoUrl),
-                                      key: ValueKey(photoUrl),
-                                      width: 88,
-                                      height: 88,
-                                      fit: BoxFit.cover,
-                                      loadingBuilder:
-                                          (context, child, loadingProgress) {
-                                        if (loadingProgress == null) {
-                                          return child;
-                                        }
-                                        return const Center(
-                                          child: SizedBox(
-                                            width: 24,
-                                            height: 24,
-                                            child: CircularProgressIndicator(
-                                                strokeWidth: 2),
-                                          ),
-                                        );
-                                      },
-                                      errorBuilder:
-                                          (context, error, stackTrace) {
-                                        return Center(
-                                          child: Text(
-                                            user.firstName.isNotEmpty
-                                                ? user.firstName[0]
-                                                    .toUpperCase()
-                                                : 'U',
-                                            style: TextStyle(
-                                                fontSize: 32,
-                                                fontWeight: FontWeight.bold,
-                                                color: Theme.of(context)
-                                                    .colorScheme
-                                                    .primary),
-                                          ),
-                                        );
-                                      },
-                                    )
-                                  : Center(
-                                      child: Text(
-                                        user.firstName.isNotEmpty
-                                            ? user.firstName[0].toUpperCase()
-                                            : 'U',
-                                        style: TextStyle(
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.bold,
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary),
-                                      ),
-                                    )),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Tooltip(
-                          message: 'Change profile photo',
-                          child: Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: _isUploadingPhoto
-                                  ? null
-                                  : _pickAndUploadImage,
-                              borderRadius: BorderRadius.circular(16),
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  shape: BoxShape.circle,
-                                  border:
-                                      Border.all(color: Colors.white, width: 2),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.1),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                              : const Icon(
+                                  Icons.camera_alt,
+                                  size: 14,
+                                  color: Colors.white,
                                 ),
-                                child: const Icon(Icons.camera_alt_rounded,
-                                    size: 14, color: Colors.white),
-                              ),
-                            ),
-                          ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 20),
-                // Info
+                const SizedBox(width: 18),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user.displayName.isNotEmpty
-                            ? user.displayName
-                            : user.email,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.onSurface,
-                            ),
+                        user.displayName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.secondaryNavy,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         user.email,
-                        style: TextStyle(
-                            fontSize: 14,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondary,
+                        ),
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          if (isEmailVerified) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppTheme.success.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text('VERIFIED',
-                                  style: TextStyle(
-                                      color: AppTheme.success,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10)),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: user.emailVerified
+                                  ? AppTheme.success.withValues(alpha: 0.12)
+                                  : AppTheme.warning.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
                             ),
-                            const SizedBox(width: 6),
-                          ],
+                            child: Text(
+                              user.emailVerified ? 'VERIFIED' : 'UNVERIFIED',
+                              style: TextStyle(
+                                color: user.emailVerified
+                                    ? AppTheme.success
+                                    : AppTheme.warning,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
                               color: user.status == 'active'
-                                  ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-                                  : AppTheme.warning.withValues(alpha: 0.1),
+                                  ? AppTheme.primaryBlue.withValues(alpha: 0.12)
+                                  : AppTheme.warning.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: Text(user.status.toUpperCase(),
-                                style: TextStyle(
-                                    color: user.status == 'active'
-                                        ? AppTheme.primaryBlue
-                                        : AppTheme.warning,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10)),
+                            child: Text(
+                              user.status.toUpperCase(),
+                              style: TextStyle(
+                                color: user.status == 'active'
+                                    ? AppTheme.primaryBlue
+                                    : AppTheme.warning,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 6),
-                      Text('Member since ${dateFormat.format(user.createdAt)}',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant)),
+                      Text(
+                        'Member since ${dateFormat.format(user.createdAt)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -539,11 +444,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     color: AppTheme.success, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: Text(_successMessage!,
-                        style: const TextStyle(
-                            color: AppTheme.success,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13))),
+                  child: Text(
+                    _successMessage!,
+                    style: const TextStyle(
+                      color: AppTheme.success,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -564,9 +473,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     color: AppTheme.error, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
-                    child: Text(_error!,
-                        style: const TextStyle(
-                            color: AppTheme.error, fontSize: 13))),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(
+                        color: AppTheme.error, fontSize: 13),
+                  ),
+                ),
               ],
             ),
           ),
@@ -585,26 +497,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'Personal Information',
                               style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.secondaryNavy,
+                              ),
                             ),
-                            const SizedBox(height: 2),
+                            SizedBox(height: 2),
                             Text(
                               'Manage your basic profile information.',
                               style: TextStyle(
-                                  fontSize: 13,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant),
+                                fontSize: 13,
+                                color: AppTheme.textSecondary,
+                              ),
                             ),
                           ],
                         ),
@@ -629,12 +540,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('FIRST NAME',
+                            const Text('FIRST NAME',
                                 style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 11,
-                                    color:
-                                        Theme.of(context).colorScheme.onSurface,
+                                    color: AppTheme.secondaryNavy,
                                     letterSpacing: 0.5)),
                             const SizedBox(height: 6),
                             _isEditing
@@ -657,12 +567,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('LAST NAME',
+                            const Text('LAST NAME',
                                 style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 11,
-                                    color:
-                                        Theme.of(context).colorScheme.onSurface,
+                                    color: AppTheme.secondaryNavy,
                                     letterSpacing: 0.5)),
                             const SizedBox(height: 6),
                             _isEditing
@@ -686,19 +595,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('EMAIL ADDRESS',
+                      const Text('EMAIL ADDRESS',
                           style: TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurface,
+                              color: AppTheme.secondaryNavy,
                               letterSpacing: 0.5)),
                       const SizedBox(height: 6),
                       Text(user.email,
-                          style: TextStyle(
-                              fontSize: 15,
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant)),
+                          style: const TextStyle(
+                              fontSize: 15, color: AppTheme.textSecondary)),
                     ],
                   ),
                   if (_isEditing) ...[
@@ -749,20 +655,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   'Security',
                   style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.secondaryNavy,
+                  ),
                 ),
                 const SizedBox(height: 20),
 
-                Text('AUTHENTICATION METHOD',
+                const Text('AUTHENTICATION METHOD',
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: AppTheme.secondaryNavy,
                         letterSpacing: 0.5)),
                 const SizedBox(height: 6),
                 Text(
@@ -777,20 +684,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 const SizedBox(height: 20),
 
                 // Password Management
-                Text('PASSWORD',
+                const Text('PASSWORD',
                     style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: AppTheme.secondaryNavy,
                         letterSpacing: 0.5)),
                 const SizedBox(height: 8),
                 if (hasPasswordProvider)
                   const ChangePasswordSection()
                 else
-                  Text('Managed securely through Google Sign-In.',
+                  const Text('Managed securely through Google Sign-In.',
                       style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontSize: 13)),
+                          color: AppTheme.textSecondary, fontSize: 13)),
               ],
             ),
           ),
@@ -804,45 +710,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Card(
-          color: Theme.of(context).colorScheme.primaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.all(20),
+          color: AppTheme.surfaceBlue,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: AppTheme.primaryBlue.withValues(alpha: 0.2),
+              width: 1.2,
+            ),
+          ),
+          child: const Padding(
+            padding: EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
                     Icon(Icons.shield_outlined,
-                        color: Theme.of(context).colorScheme.primary, size: 20),
-                    const SizedBox(width: 8),
+                        color: AppTheme.primaryBlue, size: 20),
+                    SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Account Security',
                         style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onPrimaryContainer),
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.secondaryNavy,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 Text(
                   'Your SecureVote account controls access to your organizations and voting administration features.',
                   style: TextStyle(
-                      fontSize: 13,
-                      height: 1.4,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer),
+                    fontSize: 13,
+                    height: 1.45,
+                    color: AppTheme.secondaryNavy,
+                  ),
                 ),
-                const SizedBox(height: 10),
+                SizedBox(height: 10),
                 Text(
                   'Voting choices and cryptographic ballot receipts are NOT displayed or editable from your profile to maintain absolute secrecy.',
                   style: TextStyle(
-                      fontSize: 13,
-                      height: 1.4,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer),
+                    fontSize: 13,
+                    height: 1.45,
+                    color: AppTheme.textSecondary,
+                  ),
                 ),
               ],
             ),
@@ -865,11 +779,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       color: AppTheme.error),
                 ),
                 const SizedBox(height: 12),
-                Text(
+                const Text(
                   'Sign out from this SecureVote account on the current device.',
                   style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: AppTheme.textSecondary,
                       height: 1.4),
                 ),
                 const SizedBox(height: 10),
@@ -889,11 +803,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                 ),
                 const Divider(height: 28),
-                Text(
+                const Text(
                   'Permanently delete your user account and profile data.',
                   style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      color: AppTheme.textSecondary,
                       height: 1.4),
                 ),
                 const SizedBox(height: 10),
