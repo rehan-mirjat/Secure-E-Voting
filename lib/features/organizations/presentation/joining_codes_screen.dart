@@ -265,7 +265,7 @@ class _JoiningCodesScreenState extends ConsumerState<JoiningCodesScreen> {
       );
 
   Widget _expiryPicker() => DropdownButtonFormField<int>(
-        value: _expiryHours,
+        initialValue: _expiryHours,
         isExpanded: true,
         decoration: const InputDecoration(labelText: 'Expires after'),
         items: const [

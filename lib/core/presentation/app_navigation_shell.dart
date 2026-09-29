@@ -38,7 +38,7 @@ class AppNavigationShell extends ConsumerWidget {
                   Expanded(
                     child: Column(
                       children: [
-                        _buildTopHeader(context, ref),
+                        const _TopHeader(),
                         Expanded(child: navigationShell),
                       ],
                     ),
@@ -47,7 +47,7 @@ class AppNavigationShell extends ConsumerWidget {
               )
             : Column(
                 children: [
-                  _buildTopHeader(context, ref),
+                  const _TopHeader(),
                   Expanded(child: navigationShell),
                 ],
               ),
@@ -90,50 +90,6 @@ class AppNavigationShell extends ConsumerWidget {
                   ),
               ],
             ),
-    );
-  }
-
-  Widget _buildTopHeader(BuildContext context, WidgetRef ref) {
-    final platformAdmin = ref.watch(platformAdminProvider).valueOrNull == true;
-    final pendingInvitations =
-        ref.watch(memberInvitationsProvider).valueOrNull?.length ?? 0;
-    final compact = ResponsiveLayout.isCompact(context);
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: compact ? 12 : 20, vertical: compact ? 8 : 12),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-            bottom:
-                BorderSide(color: Theme.of(context).dividerColor, width: 1)),
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: OrganizationContextSwitcher(),
-            ),
-          ),
-          if (platformAdmin)
-            IconButton(
-              icon: const Icon(Icons.admin_panel_settings_outlined,
-                  color: AppTheme.primaryBlue),
-              tooltip: 'Platform administration',
-              onPressed: () => context.go('/platform/organizations'),
-            ),
-          IconButton(
-            icon: Badge(
-              isLabelVisible: pendingInvitations > 0,
-              label: Text('$pendingInvitations'),
-              child: Icon(Icons.notifications_none_rounded,
-                  color: Theme.of(context).colorScheme.onSurface, size: 22),
-            ),
-            tooltip: 'Notifications',
-            onPressed: () => context.go('/orgs/invitations'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -228,6 +184,56 @@ class AppNavigationShell extends ConsumerWidget {
     navigationShell.goBranch(
       index,
       initialLocation: index == navigationShell.currentIndex,
+    );
+  }
+}
+
+class _TopHeader extends ConsumerWidget {
+  const _TopHeader();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final platformAdmin = ref.watch(platformAdminProvider).valueOrNull == true;
+    final pendingInvitations =
+        ref.watch(memberInvitationsProvider).valueOrNull?.length ?? 0;
+    final compact = ResponsiveLayout.isCompact(context);
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+          horizontal: compact ? 12 : 20, vertical: compact ? 8 : 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+            bottom:
+                BorderSide(color: Theme.of(context).dividerColor, width: 1)),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OrganizationContextSwitcher(),
+            ),
+          ),
+          if (platformAdmin)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings_outlined,
+                  color: AppTheme.primaryBlue),
+              tooltip: 'Platform administration',
+              onPressed: () => context.go('/platform/organizations'),
+            ),
+          IconButton(
+            icon: Badge(
+              isLabelVisible: pendingInvitations > 0,
+              label: Text('$pendingInvitations'),
+              child: Icon(Icons.notifications_none_rounded,
+                  color: Theme.of(context).colorScheme.onSurface, size: 22),
+            ),
+            tooltip: 'Notifications',
+            onPressed: () => context.go('/orgs/invitations'),
+          ),
+        ],
+      ),
     );
   }
 }

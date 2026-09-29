@@ -177,17 +177,6 @@ void main() {
       expect(payload.containsKey('status'), isFalse);
     });
 
-    test('acceptInvitation sends ONLY rawToken parameter', () async {
-      final fakeService = FakeFirebaseService();
-
-      final repo = OrganizationRepository(firebase: fakeService);
-      try {
-        // Obsolete test removed. Functionality handled by AcceptInvitationScreen
-      } catch (e) {
-        // ignore for the scope of fixing the compile error
-      }
-    });
-
     test('revokeInvitation sends ONLY invitationId parameter (NO tokenHash)', () async {
       final fakeService = FakeFirebaseService();
       fakeService.fakeFunctions.nextResponseData = {'status': 'success'};

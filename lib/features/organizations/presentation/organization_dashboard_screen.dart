@@ -38,14 +38,18 @@ class OrganizationDashboardScreen extends ConsumerWidget {
           }
 
           final compact = MediaQuery.sizeOf(context).width < 650;
-          final links = <_DashboardLink>[
+          const links = <_DashboardLink>[
             _DashboardLink('Members & invitations', 'Manage members and review invitations sent by this organization.', Icons.people_alt_outlined, '/orgs/members'),
             _DashboardLink('Joining codes', 'Create, review and revoke access codes.', Icons.key_outlined, '/orgs/joining-codes'),
             _DashboardLink('Departments', 'Organize members into groups.', Icons.domain_outlined, '/orgs/departments'),
             _DashboardLink('Voting events', 'Create events and monitor participation.', Icons.how_to_vote_outlined, '/admin/events'),
             _DashboardLink('Activity log', 'Review administrative changes.', Icons.history_rounded, '/orgs/audit'),
+          ];
+          
+          final effectiveLinks = <_DashboardLink>[
+            ...links,
             if (member.role == OrganizationRole.owner)
-              _DashboardLink('Organization branding', 'Update name, logo and colors.', Icons.palette_outlined, '/orgs/settings'),
+              const _DashboardLink('Organization branding', 'Update name, logo and colors.', Icons.palette_outlined, '/orgs/settings'),
           ];
 
           return Center(
@@ -89,7 +93,7 @@ class OrganizationDashboardScreen extends ConsumerWidget {
                         spacing: 12,
                         runSpacing: 12,
                         children: [
-                          for (final link in links)
+                          for (final link in effectiveLinks)
                             SizedBox(
                               width: width,
                               child: _DashboardCard(
