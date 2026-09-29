@@ -1,4 +1,18 @@
 pluginManagement {
+    try {
+        def pe = Class.forName("java.lang.ProcessEnvironment")
+        try {
+            def envField = pe.getDeclaredField("theEnvironment")
+            envField.setAccessible(true)
+            envField.get(null).keySet().removeIf { k -> k.toString() == "ANDROID_PREFS_ROOT" }
+        } catch (ignored) {}
+        try {
+            def unmodField = pe.getDeclaredField("theUnmodifiableEnvironment")
+            unmodField.setAccessible(true)
+            unmodField.get(null).keySet().removeIf { k -> k.toString() == "ANDROID_PREFS_ROOT" }
+        } catch (ignored) {}
+    } catch (ignored) {}
+
     def flutterSdkPath = {
         def properties = new java.util.Properties()
         file("local.properties").withInputStream { properties.load(it) }
