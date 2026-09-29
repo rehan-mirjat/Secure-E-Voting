@@ -18,6 +18,8 @@ class MockUser extends Fake implements User {
   @override
   final String? email = 'rehan@securevote.com';
   @override
+  final String? photoURL = null;
+  @override
   final List<UserInfo> providerData = [MockUserInfo()];
 }
 

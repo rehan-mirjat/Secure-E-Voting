@@ -116,7 +116,7 @@ void main() {
       expect(find.text('Member'), findsWidgets);
     });
 
-    testWidgets('Successful invitation displays returned raw token and clipboard copy works', (WidgetTester tester) async {
+    testWidgets('Successful invitation displays confirmation and allows closing', (WidgetTester tester) async {
       final mockRepo = MockOrganizationRepository();
       await tester.pumpWidget(ProviderScope(
         overrides: [organizationRepositoryProvider.overrideWithValue(mockRepo)],
@@ -127,12 +127,9 @@ void main() {
       await tester.tap(find.text('Send Invitation'));
       await tester.pumpAndSettle();
 
-      expect(find.text('mock_raw_token_32_chars_1234567890'), findsOneWidget);
-
-      // Verify Copy to Clipboard
-      await tester.tap(find.byIcon(Icons.copy));
-      await tester.pump();
-      expect(find.text('Invitation token copied to clipboard!'), findsOneWidget);
+      expect(find.text('Invitation Created'), findsOneWidget);
+      expect(find.textContaining('voter@org.com'), findsOneWidget);
+      expect(find.text('Done'), findsOneWidget);
     });
 
     testWidgets('Displays safe fallback error when backend fails', (WidgetTester tester) async {

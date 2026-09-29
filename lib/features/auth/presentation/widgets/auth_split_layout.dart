@@ -31,24 +31,21 @@ class AuthSplitLayout extends StatelessWidget {
               )
             : null,
         body: SafeArea(
-          child: CustomScrollView(
-            slivers: [
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Column(
-                  children: [
-                    Expanded(child: child),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 24, top: 16),
-                      child: Text(
-                        'Secure voting for organizations',
-                        style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.5), fontSize: 10),
-                      ),
-                    ),
-                  ],
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                child,
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 24, top: 16),
+                  child: Text(
+                    'Secure voting for organizations',
+                    style: TextStyle(
+                        color: AppTheme.textSecondary.withValues(alpha: 0.5),
+                        fontSize: 10),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );
