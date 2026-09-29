@@ -63,9 +63,9 @@ class AuthSplitLayout extends StatelessWidget {
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    Color(0xFF0B132B), // Deep Midnight Navy
-                    Color(0xFF0F172A), // Slate Navy
-                    Color(0xFF1E293B), // Royal Navy Accent
+                    Color(0xFF24324D), // Lighter Slate Navy for high logo visibility
+                    Color(0xFF1E293B), // Slate Navy
+                    Color(0xFF0F172A), // Deep Slate Navy
                   ],
                 ),
               ),
@@ -104,25 +104,11 @@ class AuthSplitLayout extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Container(
-                              width: 38,
-                              height: 38,
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.15),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Image.asset(
-                                'assets/icon/app_icon_transparent.png',
-                                fit: BoxFit.contain,
-                              ),
+                            Image.asset(
+                              'assets/icon/app_icon_transparent.png',
+                              width: 34,
+                              height: 34,
+                              fit: BoxFit.contain,
                             ),
                             const SizedBox(width: 16),
                             const Text(

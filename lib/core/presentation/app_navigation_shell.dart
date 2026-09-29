@@ -101,13 +101,13 @@ class AppNavigationShell extends ConsumerWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFF0B132B), // Deep Midnight Navy
-            Color(0xFF0F172A), // Slate Navy
-            Color(0xFF182238), // Royal Dark Accent
+            Color(0xFF24324D), // Lighter Slate Navy for high logo visibility
+            Color(0xFF1E293B), // Slate Navy
+            Color(0xFF0F172A), // Deep Slate Navy
           ],
         ),
         border: Border(
-          right: BorderSide(color: Color(0xFF1E293B), width: 1),
+          right: BorderSide(color: Color(0xFF334155), width: 1),
         ),
       ),
       child: Stack(
@@ -121,7 +121,7 @@ class AppNavigationShell extends ConsumerWidget {
               height: 240,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppTheme.primaryBlue.withValues(alpha: 0.12),
+                color: AppTheme.primaryBlue.withValues(alpha: 0.15),
               ),
             ),
           ),
@@ -131,25 +131,11 @@ class AppNavigationShell extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
                 child: Row(
                   children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Image.asset(
-                        'assets/icon/app_icon_transparent.png',
-                        fit: BoxFit.contain,
-                      ),
+                    Image.asset(
+                      'assets/icon/app_icon_transparent.png',
+                      width: 34,
+                      height: 34,
+                      fit: BoxFit.contain,
                     ),
                     const SizedBox(width: 12),
                     const Text(
