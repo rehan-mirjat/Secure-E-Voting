@@ -83,12 +83,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              // Styled Logo Badge
+                              // Styled Logo Badge using custom shield icon
                               Semantics(
                                 label: 'SecureVote Logo',
                                 child: Container(
-                                  width: 92,
-                                  height: 92,
+                                  width: 96,
+                                  height: 96,
+                                  padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       begin: Alignment.topLeft,
@@ -113,31 +114,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                       ),
                                     ],
                                   ),
-                                  child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      const Icon(
-                                        Icons.how_to_vote_rounded,
-                                        size: 46,
-                                        color: AppTheme.primaryBlue,
-                                      ),
-                                      Positioned(
-                                        top: 14,
-                                        right: 14,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(2),
-                                          decoration: const BoxDecoration(
-                                            color: AppTheme.surfaceWhite,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(
-                                            Icons.verified_user_rounded,
-                                            size: 16,
-                                            color: AppTheme.accentTeal,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                  child: Image.asset(
+                                    'assets/icon/app_icon_transparent.png',
+                                    fit: BoxFit.contain,
                                   ),
                                 ),
                               ),

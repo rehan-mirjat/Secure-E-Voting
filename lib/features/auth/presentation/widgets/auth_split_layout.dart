@@ -38,10 +38,11 @@ class AuthSplitLayout extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
                   child: Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: AppTheme.primaryBlue, borderRadius: BorderRadius.circular(10)),
-                        child: const Icon(Icons.shield_rounded, color: Colors.white, size: 20),
+                      Image.asset(
+                        'assets/icon/app_icon_transparent.png',
+                        width: 28,
+                        height: 28,
+                        fit: BoxFit.contain,
                       ),
                       const SizedBox(width: 10),
                       Text('SecureVote', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
@@ -91,13 +92,11 @@ class AuthSplitLayout extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.security, color: Colors.white, size: 24),
+                      Image.asset(
+                        'assets/icon/app_icon_transparent.png',
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.contain,
                       ),
                       const SizedBox(width: 16),
                       const Text(

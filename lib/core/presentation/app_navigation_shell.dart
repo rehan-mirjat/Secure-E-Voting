@@ -103,14 +103,11 @@ class AppNavigationShell extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.shield_rounded,
-                      color: Colors.white, size: 20),
+                Image.asset(
+                  'assets/icon/app_icon_transparent.png',
+                  width: 32,
+                  height: 32,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(width: 12),
                 const Text(
