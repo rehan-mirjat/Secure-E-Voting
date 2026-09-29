@@ -9,7 +9,7 @@ class AuthSplitLayout extends StatelessWidget {
   const AuthSplitLayout({
     super.key, 
     required this.child,
-    this.showMobileBranding = true,
+    this.showMobileBranding = false,
     this.onMobileBackTap,
   });
 
@@ -20,7 +20,7 @@ class AuthSplitLayout extends StatelessWidget {
     if (!isDesktop) {
       return Scaffold(
         backgroundColor: AppTheme.backgroundLight,
-        appBar: !showMobileBranding && onMobileBackTap != null
+        appBar: onMobileBackTap != null
             ? AppBar(
                 backgroundColor: AppTheme.backgroundLight,
                 elevation: 0,
@@ -31,42 +31,18 @@ class AuthSplitLayout extends StatelessWidget {
               )
             : null,
         body: SafeArea(
-          child: Column(
-            children: [
-              if (showMobileBranding)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                  child: Row(
-                    children: [
-                      Image.asset(
-                        'assets/icon/app_icon_transparent.png',
-                        width: 28,
-                        height: 28,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 10),
-                      Text('SecureVote', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                      const Spacer(),
-                      const Text('Private by design', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              Expanded(
-                child: CustomScrollView(
-                  slivers: [
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: Column(
-                        children: [
-                          Expanded(child: child),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 24, top: 16),
-                            child: Text(
-                              'Secure voting for organizations',
-                              style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.5), fontSize: 10),
-                            ),
-                          ),
-                        ],
+          child: CustomScrollView(
+            slivers: [
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Column(
+                  children: [
+                    Expanded(child: child),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 24, top: 16),
+                      child: Text(
+                        'Secure voting for organizations',
+                        style: TextStyle(color: AppTheme.textSecondary.withValues(alpha: 0.5), fontSize: 10),
                       ),
                     ),
                   ],
@@ -81,102 +57,144 @@ class AuthSplitLayout extends StatelessWidget {
     return Scaffold(
       body: Row(
         children: [
-          // Left Side - Branding
+          // Left Side - Premium Gradient Branding
           Expanded(
             flex: 1,
             child: Container(
-              color: AppTheme.secondaryNavy,
-              padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 48),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF0B132B), // Deep Midnight Navy
+                    Color(0xFF0F172A), // Slate Navy
+                    Color(0xFF1E293B), // Royal Navy Accent
+                  ],
+                ),
+              ),
+              child: Stack(
                 children: [
-                  Row(
-                    children: [
-                      Image.asset(
-                        'assets/icon/app_icon_transparent.png',
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.contain,
+                  // Subtle top-left electric blue ambient glow
+                  Positioned(
+                    top: -120,
+                    left: -120,
+                    child: Container(
+                      width: 380,
+                      height: 380,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.18),
                       ),
-                      const SizedBox(width: 16),
-                      const Text(
-                        'SECUREVOTE',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentTeal.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
+                  ),
+                  // Subtle bottom-right gold ambient glow matching logo facets
+                  Positioned(
+                    bottom: -100,
+                    right: -100,
+                    child: Container(
+                      width: 360,
+                      height: 360,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFC5A059).withValues(alpha: 0.10),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 48),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.circle, size: 8, color: AppTheme.accentTeal),
-                        SizedBox(width: 8),
-                        Text(
-                          'PRIVACY-AWARE VOTING',
-                          style: TextStyle(
-                            color: AppTheme.accentTeal,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.1,
+                        Row(
+                          children: [
+                            Image.asset(
+                              'assets/icon/app_icon_transparent.png',
+                              width: 32,
+                              height: 32,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(width: 16),
+                            const Text(
+                              'SECUREVOTE',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accentTeal.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
                           ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.circle, size: 8, color: AppTheme.accentTeal),
+                              SizedBox(width: 8),
+                              Text(
+                                'PRIVACY-AWARE VOTING',
+                                style: TextStyle(
+                                  color: AppTheme.accentTeal,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        const Text(
+                          'Secure, private\nvoting for every\norganization.',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 40,
+                            fontWeight: FontWeight.bold,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 48),
+                        _buildFeatureItem(
+                          icon: Icons.lock_outline,
+                          title: 'Server-authorized voting',
+                          description: 'Ballots are validated and recorded by trusted backend services.',
+                        ),
+                        const SizedBox(height: 32),
+                        _buildFeatureItem(
+                          icon: Icons.fingerprint,
+                          title: 'Privacy-aware ballots',
+                          description: 'Anonymous ballots are separated from participation records.',
+                        ),
+                        const SizedBox(height: 32),
+                        _buildFeatureItem(
+                          icon: Icons.check_circle_outline,
+                          title: 'Clear participation receipts',
+                          description: 'Voters can confirm participation without revealing their selection.',
+                        ),
+                        const Spacer(),
+                        const Divider(color: Color(0xFF334155)), // Slate 700
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'SecureVote',
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                            ),
+                            Text(
+                              'Android • iOS • Web',
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ),
-                  const Spacer(),
-                  const Text(
-                    'Secure, private\nvoting for every\norganization.',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 48),
-                  _buildFeatureItem(
-                    icon: Icons.lock_outline,
-                    title: 'Server-authorized voting',
-                    description: 'Ballots are validated and recorded by trusted backend services.',
-                  ),
-                  const SizedBox(height: 32),
-                  _buildFeatureItem(
-                    icon: Icons.fingerprint,
-                    title: 'Privacy-aware ballots',
-                    description: 'Anonymous ballots are separated from participation records.',
-                  ),
-                  const SizedBox(height: 32),
-                  _buildFeatureItem(
-                    icon: Icons.check_circle_outline,
-                    title: 'Clear participation receipts',
-                    description: 'Voters can confirm participation without revealing their selection.',
-                  ),
-                  const Spacer(),
-                  const Divider(color: Color(0xFF334155)), // Slate 700
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'SecureVote',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
-                      ),
-                      Text(
-                        'Android • iOS • Web',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12),
-                      ),
-                    ],
                   ),
                 ],
               ),
