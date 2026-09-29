@@ -27,7 +27,7 @@ final memberInvitationsProvider =
 
   final repository = ref.watch(organizationRepositoryProvider);
   yield await repository.getMyInvitations();
-  await for (final _ in Stream<int>.periodic(const Duration(seconds: 45))) {
+  await for (final _ in Stream.periodic(const Duration(seconds: 45), (i) => i)) {
     yield await repository.getMyInvitations();
   }
 });
