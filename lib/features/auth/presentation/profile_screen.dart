@@ -8,6 +8,7 @@ import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_view.dart';
 import '../../../core/widgets/loading_view.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/firebase_service.dart'; // Needed for sanitizeStorageUrl
 import '../data/user_repository.dart';
 import '../domain/app_user.dart';
 import 'widgets/change_password_section.dart';
@@ -284,6 +285,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final hasGoogleProvider = authUser?.providerData
             .any((info) => info.providerId == 'google.com') ??
         false;
+        
+    final sanitizedPhotoUrl = FirebaseService.sanitizeStorageUrl(photoUrl);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -300,8 +303,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       radius: 38,
                       backgroundColor: AppTheme.surfaceBlue,
                       backgroundImage:
-                          photoUrl != null ? NetworkImage(photoUrl) : null,
-                      child: photoUrl == null
+                          sanitizedPhotoUrl.isNotEmpty ? NetworkImage(sanitizedPhotoUrl) : null,
+                      child: sanitizedPhotoUrl.isEmpty
                           ? Text(
                               user.firstName.isNotEmpty
                                   ? user.firstName[0].toUpperCase()
