@@ -49,10 +49,14 @@ class FirebaseService {
         
         debugPrint('✅ Connected to Firebase Emulators at $host');
       } catch (e) {
-        debugPrint('🚨 CRITICAL ERROR: Failed to connect to Firebase Emulators: $e');
-        // Stop execution if we expected to use emulators but failed.
-        // We do NOT want to silently fail over to production.
-        throw Exception('Emulator connection failed. Halting application for safety.');
+        if (e.toString().contains('already configured') || e.toString().contains('already been configured')) {
+           debugPrint('✅ Emulators already configured (Hot Restart handled).');
+        } else {
+           debugPrint('🚨 CRITICAL ERROR: Failed to connect to Firebase Emulators: $e');
+           // Stop execution if we expected to use emulators but failed.
+           // We do NOT want to silently fail over to production.
+           throw Exception('Emulator connection failed. Halting application for safety.');
+        }
       }
     }
   }

@@ -22,7 +22,9 @@ Future<void> main() async {
 
   String? initError;
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    }
     await FirebaseService.initialize();
   } catch (e) {
     initError = e.toString();
